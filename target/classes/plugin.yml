@@ -1,0 +1,15 @@
+name: Blocknights
+main: com.blocknights.BlocknightsPlugin
+version: 1.0.0
+api-version: 1.21
+author: Chris
+description: Tower Defense RPG with full in-game editor, Persona stats, skills, talents, and Citizens integration.
+
+depend:
+   - Citizens
+   - FastAsyncWorldEdit
+
+commands:
+  blocknights:
+    description: Main command for Blocknights
+    usage: /blocknights
