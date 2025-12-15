@@ -13,3 +13,6 @@ commands:
   blocknights:
     description: Main command for Blocknights
     usage: /blocknights
+  mapeditor:
+    description: Ouvre la toolbox de l'éditeur de maps Blocknights
+    usage: /<command>
