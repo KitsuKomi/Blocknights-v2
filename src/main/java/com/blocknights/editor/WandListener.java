@@ -1,4 +1,4 @@
-package com.blocknights.editor;
+package com.blocknights.editor.ui;
 
 import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
@@ -20,25 +20,26 @@ public class WandListener implements Listener {
 
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
-        // 1. Filtrage basique (Main principale, Item présent)
         if (e.getHand() != EquipmentSlot.HAND) return;
         if (e.getItem() == null || e.getItem().getType() != Material.BLAZE_ROD) return;
 
-        // 2. Vérifier si le joueur est un éditeur actif
+        // Vérifie si le joueur est en mode éditeur
         if (!plugin.getEditorManager().isEditor(e.getPlayer())) return;
 
-        e.setCancelled(true); // Annule l'action vanilla (casser/taper)
+        e.setCancelled(true); // Bloque l'action normale (taper/casser)
 
-        // 3. Actions
+        var map = plugin.getMapManager().getActiveMap();
+        if (map == null) return;
+
         if (e.getAction() == Action.LEFT_CLICK_BLOCK || e.getAction() == Action.LEFT_CLICK_AIR) {
-            // Ajouter un point
-            plugin.getMapManager().addPathPoint(e.getPlayer().getLocation());
-            e.getPlayer().sendMessage(Component.text("Point ajouté !", NamedTextColor.GREEN));
+            // Ajouter
+            map.addPoint(e.getPlayer().getLocation());
+            e.getPlayer().sendMessage(Component.text("Point ajouté (" + map.getPath().size() + ")", NamedTextColor.GREEN));
         
         } else if (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR) {
-            // Retirer le dernier point
-            plugin.getMapManager().removeLastPoint();
-            e.getPlayer().sendMessage(Component.text("Dernier point retiré.", NamedTextColor.YELLOW));
+            // Retirer
+            map.removeLastPoint();
+            e.getPlayer().sendMessage(Component.text("Dernier point retiré", NamedTextColor.YELLOW));
         }
     }
 }

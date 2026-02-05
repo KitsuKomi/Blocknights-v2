@@ -3,14 +3,13 @@ package com.blocknights.editor;
 import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Location;
 
 import java.util.HashSet;
 import java.util.List;
@@ -29,16 +28,13 @@ public class EditorManager {
 
     public void toggleEditor(Player player) {
         if (editors.contains(player.getUniqueId())) {
-            // Désactiver
             editors.remove(player.getUniqueId());
             player.getInventory().remove(Material.BLAZE_ROD);
             player.sendMessage(Component.text("Mode Éditeur désactivé.", NamedTextColor.YELLOW));
         } else {
-            // Activer
             editors.add(player.getUniqueId());
             giveWand(player);
             player.sendMessage(Component.text("Mode Éditeur activé !", NamedTextColor.GREEN));
-            player.sendMessage(Component.text("Utilisez le Bâton pour tracer le chemin.", NamedTextColor.GRAY));
         }
     }
 
@@ -58,40 +54,39 @@ public class EditorManager {
         player.getInventory().addItem(wand);
     }
 
-    // Affiche le chemin en particules temps réel pour les éditeurs
+    // Affiche le chemin en particules (Visualisation)
     private void startVisualizer() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (editors.isEmpty()) return;
                 
-                List<Location> path = plugin.getMapManager().getPath();
-                if (path.isEmpty()) return;
+                // On récupère la map active
+                var map = plugin.getMapManager().getActiveMap();
+                if (map == null || map.getPath().isEmpty()) return;
 
-                // Dessiner des lignes entre les points
+                List<Location> path = map.getPath();
+
+                // Tracer les lignes
                 for (int i = 0; i < path.size() - 1; i++) {
                     Location start = path.get(i);
                     Location end = path.get(i + 1);
                     drawLine(start, end);
                 }
                 
-                // Marquer les points (Spawn = Vert, Fin = Rouge, Milieu = Jaune)
-                for (int i = 0; i < path.size(); i++) {
-                    Location p = path.get(i);
-                    if (i == 0) p.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, p, 5); // Spawn
-                    else if (i == path.size() - 1) p.getWorld().spawnParticle(Particle.FLAME, p, 5); // Fin
-                    else p.getWorld().spawnParticle(Particle.WAX_ON, p, 1);
+                // Marquer les points
+                for (Location p : path) {
+                    p.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, p, 5);
                 }
             }
-        }.runTaskTimer(plugin, 0L, 10L); // Toutes les 0.5 sec
+        }.runTaskTimer(plugin, 0L, 10L);
     }
 
     private void drawLine(Location p1, Location p2) {
-        double distance = p1.distance(p2);
-        double points = distance * 2; // 2 particules par bloc
-        for (int i = 0; i <= points; i++) {
-            double ratio = i / points;
-            Location loc = p1.clone().add(p2.clone().subtract(p1).multiply(ratio));
+        double dist = p1.distance(p2);
+        double step = 0.5; // Une particule tous les 0.5 blocs
+        for (double d = 0; d < dist; d += step) {
+            Location loc = p1.clone().add(p2.clone().subtract(p1).normalize().multiply(d));
             loc.getWorld().spawnParticle(Particle.END_ROD, loc, 1, 0, 0, 0, 0);
         }
     }

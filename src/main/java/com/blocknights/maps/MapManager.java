@@ -11,14 +11,19 @@ public class MapManager {
     // C'est cette variable qui te manquait
     private BnMap activeMap; 
 
+    public class MapManager {
+
+    private final BlocknightsPlugin plugin;
+    private BnMap activeMap; // La map en cours d'édition
+
     public MapManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
-        this.io = new FolderMapIO(plugin);
-        
-        // On essaie de charger "demo", sinon on crée une nouvelle map
-        this.activeMap = io.load("demo");
-        if (this.activeMap == null) {
-            this.activeMap = new BnMap("demo");
+        // Pour tester tout de suite, on crée une map "test" par défaut
+        this.activeMap = new BnMap("test");
+        }
+
+    public BnMap getActiveMap() {
+        return activeMap;
         }
     }
 

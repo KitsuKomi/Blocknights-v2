@@ -32,7 +32,8 @@ public class BlocknightsPlugin extends JavaPlugin {
 
         // SessionManager est le chef d'orchestre, il a besoin des autres
         this.sessionManager = new SessionManager(this);
-
+        
+        getServer().getPluginManager().registerEvents(new com.blocknights.editor.ui.WandListener(this), this);
         // 2. Commandes (Pour tester tout de suite)
         getCommand("bn").setExecutor(new BnCommands(this));
 
