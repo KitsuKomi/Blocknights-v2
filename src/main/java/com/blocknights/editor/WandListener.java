@@ -1,4 +1,4 @@
-package com.blocknights.editor.ui;
+package com.blocknights.editor; 
 
 import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
@@ -26,19 +26,19 @@ public class WandListener implements Listener {
         // Vérifie si le joueur est en mode éditeur
         if (!plugin.getEditorManager().isEditor(e.getPlayer())) return;
 
-        e.setCancelled(true); // Bloque l'action normale (taper/casser)
+        e.setCancelled(true); 
 
         var map = plugin.getMapManager().getActiveMap();
         if (map == null) return;
 
         if (e.getAction() == Action.LEFT_CLICK_BLOCK || e.getAction() == Action.LEFT_CLICK_AIR) {
             // Ajouter
-            map.addPoint(e.getPlayer().getLocation());
+            plugin.getMapManager().addPathPoint(e.getPlayer().getLocation());
             e.getPlayer().sendMessage(Component.text("Point ajouté (" + map.getPath().size() + ")", NamedTextColor.GREEN));
         
         } else if (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR) {
             // Retirer
-            map.removeLastPoint();
+            plugin.getMapManager().removeLastPoint();
             e.getPlayer().sendMessage(Component.text("Dernier point retiré", NamedTextColor.YELLOW));
         }
     }

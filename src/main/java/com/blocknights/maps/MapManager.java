@@ -6,77 +6,39 @@ import org.bukkit.Location;
 public class MapManager {
 
     private final BlocknightsPlugin plugin;
-    private final FolderMapIO io;
-    
-    // C'est cette variable qui te manquait
-    private BnMap activeMap; 
-
-    public class MapManager {
-
-    private final BlocknightsPlugin plugin;
     private BnMap activeMap; // La map en cours d'édition
 
     public MapManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
-        // Pour tester tout de suite, on crée une map "test" par défaut
+        // On crée une map "test" par défaut pour que l'éditeur fonctionne tout de suite
         this.activeMap = new BnMap("test");
-        }
-
-    public BnMap getActiveMap() {
-        return activeMap;
-        }
     }
 
-    // --- Gestion des Points (Utilisé par le WandListener) ---
+    // --- Gestion ---
 
     public void addPathPoint(Location loc) {
         if (activeMap == null) return;
-        
-        activeMap.addPathPoint(loc);
+        activeMap.addPoint(loc);
         plugin.getLogger().info("Point ajouté. Total: " + activeMap.getPath().size());
-        
-        saveActiveMap(); // Sauvegarde auto
     }
 
     public void removeLastPoint() {
-        if (activeMap != null && !activeMap.getPath().isEmpty()) {
-            // Retire le dernier élément de la liste
-            activeMap.getPath().remove(activeMap.getPath().size() - 1);
-            
+        if (activeMap != null) {
+            activeMap.removeLastPoint();
             plugin.getLogger().info("Dernier point retiré via Wand.");
-            saveActiveMap(); // Sauvegarde auto
         }
-    }
-    
-    // --- Gestion des Fichiers ---
-
-    public void saveActiveMap() {
-        if (activeMap != null) io.save(activeMap);
-    }
-    
-    public void loadMap(String id) {
-        BnMap loaded = io.load(id);
-        if (loaded != null) {
-            this.activeMap = loaded;
-            plugin.getLogger().info("Map " + id + " chargée !");
-        }
-    }
-    
-    public void createMap(String id) {
-        this.activeMap = new BnMap(id);
-        saveActiveMap();
     }
 
     // --- Getters ---
 
     public BnMap getActiveMap() { return activeMap; }
     
-    // Raccourcis pour que le reste du plugin (GameManager, WaveManager) continue de marcher
+    // Raccourcis pour que le reste du plugin continue de marcher
     public java.util.List<Location> getPath() {
         return activeMap != null ? activeMap.getPath() : java.util.Collections.emptyList();
     }
     
     public Location getSpawnPoint() {
-        return activeMap != null ? activeMap.getSpawnLocation() : null;
+        return (activeMap != null && !activeMap.getPath().isEmpty()) ? activeMap.getPath().get(0) : null;
     }
 }
