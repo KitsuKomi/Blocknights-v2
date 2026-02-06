@@ -3,13 +3,14 @@ package com.blocknights.editor;
 import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.Location;
+import org.bukkit.util.Vector; // Import important pour les maths
 
 import java.util.HashSet;
 import java.util.List;
@@ -54,14 +55,12 @@ public class EditorManager {
         player.getInventory().addItem(wand);
     }
 
-    // Affiche le chemin en particules (Visualisation)
     private void startVisualizer() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (editors.isEmpty()) return;
                 
-                // On récupère la map active
                 var map = plugin.getMapManager().getActiveMap();
                 if (map == null || map.getPath().isEmpty()) return;
 
@@ -69,9 +68,7 @@ public class EditorManager {
 
                 // Tracer les lignes
                 for (int i = 0; i < path.size() - 1; i++) {
-                    Location start = path.get(i);
-                    Location end = path.get(i + 1);
-                    drawLine(start, end);
+                    drawLine(path.get(i), path.get(i + 1));
                 }
                 
                 // Marquer les points
@@ -82,11 +79,19 @@ public class EditorManager {
         }.runTaskTimer(plugin, 0L, 10L);
     }
 
+    // C'EST ICI QUE J'AI CORRIGÉ LA LOGIQUE MATHÉMATIQUE
     private void drawLine(Location p1, Location p2) {
         double dist = p1.distance(p2);
-        double step = 0.5; // Une particule tous les 0.5 blocs
+        double step = 0.5; 
+        
+        // 1. On convertit les Locations en Vecteurs pour calculer la direction
+        Vector direction = p2.toVector().subtract(p1.toVector()).normalize();
+
         for (double d = 0; d < dist; d += step) {
-            Location loc = p1.clone().add(p2.clone().subtract(p1).normalize().multiply(d));
+            // 2. On ajoute le vecteur directionnel multiplié par la distance 'd'
+            // .clone() est vital car .multiply() modifie l'objet original
+            Location loc = p1.clone().add(direction.clone().multiply(d));
+            
             loc.getWorld().spawnParticle(Particle.END_ROD, loc, 1, 0, 0, 0, 0);
         }
     }
