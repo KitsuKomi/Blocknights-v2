@@ -1,129 +1,153 @@
 package com.blocknights.game;
 
 import com.blocknights.BlocknightsPlugin;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import com.blocknights.maps.BnMap;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SessionManager {
 
     private final BlocknightsPlugin plugin;
-    private final ScoreboardManager scoreboardManager;
     private boolean isRunning = false;
+    private final List<GamePlayer> players = new ArrayList<>();
     
-    private final Map<UUID, GamePlayer> players = new HashMap<>();
+    private int nexusLives = 20; 
 
     public SessionManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
-        this.scoreboardManager = new ScoreboardManager(plugin);
+    }
+
+    public boolean isRunning() { return isRunning; }
+    public List<GamePlayer> getPlayers() { return players; }
+    public int getNexusLives() { return nexusLives; }
+
+    public GamePlayer getGamePlayer(Player p) {
+        for (GamePlayer gp : players) {
+            if (gp.getUniqueId().equals(p.getUniqueId())) return gp;
+        }
+        return null; // Devrait rarement arriver si le jeu est lancé
     }
 
     public void startGame() {
         if (isRunning) return;
-        if (plugin.getMapManager().getActiveMap() == null) {
-            Bukkit.broadcast(Component.text("Aucune map chargée !", NamedTextColor.RED));
-            return;
-        }
+        
+        BnMap map = plugin.getMapManager().getActiveMap();
+        if (map == null) return; 
 
         isRunning = true;
         players.clear();
+        this.nexusLives = map.getInitialLives();
 
-        // Setup des joueurs
         for (Player p : Bukkit.getOnlinePlayers()) {
-            GamePlayer gp = new GamePlayer(p);
-            players.put(p.getUniqueId(), gp);
+            GamePlayer gp = new GamePlayer(p); 
+            // Ajustement argent selon la map (Base 1000 dans GamePlayer, on ajoute la diff)
+            gp.addMoney(map.getInitialMoney() - 1000); 
+            players.add(gp);
+
+            p.setGameMode(GameMode.ADVENTURE);
+            p.getInventory().clear();
             
-            // Initialisation Scoreboard
-            scoreboardManager.setupScoreboard(p);
+            if (plugin.getMapManager().getSpawnPoint() != null) {
+                p.teleport(plugin.getMapManager().getSpawnPoint());
+            }
+
+            // Scoreboard (Maintenant ça compile car le getter existe dans Plugin)
+            plugin.getScoreboardManager().setupScoreboard(p);
             
-            p.sendMessage(Component.text("=== MISSION START ===", NamedTextColor.GOLD));
-            p.playSound(p.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1f, 1f);
+            // Message I18n
+            plugin.getLang().send(p, "game-start");
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
         }
+        
         plugin.getWaveManager().startNextWave();
+    }
+
+    public void stopGame() {
+        isRunning = false;
+        
+        // Nettoyage entités
+        if (plugin.getWaveManager() != null) plugin.getWaveManager().clearAll();
+        if (plugin.getOperatorManager() != null) plugin.getOperatorManager().clearAll();
+
+        // Reset Joueurs
+        for (GamePlayer gp : players) {
+            Player p = gp.getBukkitPlayer();
+            if (p != null) {
+                p.getInventory().clear();
+                p.setGameMode(GameMode.CREATIVE);
+                if (plugin.getScoreboardManager() != null) {
+                    plugin.getScoreboardManager().removePlayer(p);
+                }
+            }
+        }
+        players.clear();
+        plugin.getLang().broadcast("game-stop");
+    }
+
+    public void damageNexus(int damage) {
+        if (!isRunning) return;
+
+        this.nexusLives -= damage;
+        
+        // Message Chat I18n
+        plugin.getLang().broadcast("nexus-damaged-chat", 
+            "{damage}", String.valueOf(damage),
+            "{lives}", String.valueOf(nexusLives)
+        );
+        
+        // Titres & Sons I18n
+        String title = plugin.getLang().getRaw("nexus-damaged-title").replace("&", "§");
+        String sub = plugin.getLang().getRaw("nexus-damaged-subtitle").replace("&", "§");
+
+        for (GamePlayer gp : players) {
+            Player p = gp.getBukkitPlayer();
+            if (p != null) {
+                p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_LAND, 1f, 2f);
+                p.sendTitle(title, sub, 0, 20, 10);
+            }
+        }
+
+        if (this.nexusLives <= 0) {
+            gameOver();
+        }
+    }
+
+    private void gameOver() {
+        plugin.getLang().broadcast("game-over-chat");
+        
+        String title = plugin.getLang().getRaw("game-over-title").replace("&", "§");
+        String sub = plugin.getLang().getRaw("game-over-subtitle").replace("&", "§");
+
+        for (GamePlayer gp : players) {
+            Player p = gp.getBukkitPlayer();
+            if (p != null) {
+                p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1f, 0.5f);
+                p.sendTitle(title, sub, 10, 100, 20);
+            }
+        }
+        stopGame();
     }
     
     public void victory() {
         if (!isRunning) return;
         
-        // 1. Message Chat (Via LangManager)
         plugin.getLang().broadcast("game-victory-chat");
         
-        // 2. Titre & Son pour tous les joueurs
-        for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
-            p.playSound(p.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
-            
-            // On récupère le texte brut pour le Title
-            String title = plugin.getLang().getRaw("game-victory-title").replace("&", "§");
-            String sub = plugin.getLang().getRaw("game-victory-subtitle").replace("&", "§");
-            p.sendTitle(title, sub, 10, 70, 20);
-        }
+        String title = plugin.getLang().getRaw("game-victory-title").replace("&", "§");
+        String sub = plugin.getLang().getRaw("game-victory-subtitle").replace("&", "§");
 
-        stopGame(); // On arrête tout proprement
-    }
-    public void stopGame() {
-        if (!isRunning) return;
-        isRunning = false;
-        
-        plugin.getWaveManager().clearAll();
-        
-        // Reset Scoreboard
-        for (GamePlayer gp : players.values()) {
-            gp.getBukkitPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
-        }
-        players.clear();
-        
-        Bukkit.broadcast(Component.text("Mission Terminée.", NamedTextColor.YELLOW));
-    }
-
-    public void damageNexus(int damage) {
-        if (!isRunning) return;
-        
-        // Mode Coop : Dégâts partagés
-        for (GamePlayer gp : players.values()) {
-            gp.removeLife(damage);
-            gp.getBukkitPlayer().playSound(gp.getBukkitPlayer().getLocation(), Sound.ENTITY_PLAYER_HURT, 1f, 1f);
-            
-            if (gp.getLives() <= 0) {
-                failGame();
-                return;
+        for (GamePlayer gp : players) {
+            Player p = gp.getBukkitPlayer();
+            if (p != null) {
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+                p.sendTitle(title, sub, 10, 70, 20);
             }
-        }
-    }
-    
-    private void failGame() {
-        Bukkit.broadcast(Component.text("=== MISSION FAILED ===", NamedTextColor.DARK_RED));
-        Bukkit.broadcast(Component.text("Le Nexus a été détruit.", NamedTextColor.RED));
-        for (GamePlayer gp : players.values()) {
-            gp.getBukkitPlayer().playSound(gp.getBukkitPlayer().getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
         }
         stopGame();
     }
-
-    public void rewardPlayer(Player p, double money) {
-        // Si null (ex: kill par une tour sans propriétaire direct), on partage ?
-        // Pour l'instant on donne à tout le monde (Coop simple)
-        if (p == null) {
-            for (GamePlayer gp : players.values()) gp.addMoney(money);
-        } else {
-            GamePlayer gp = players.get(p.getUniqueId());
-            if (gp != null) gp.addMoney(money);
-        }
-    }
-
-    public GamePlayer getGamePlayer(Player p) {
-        return players.get(p.getUniqueId());
-    }
-    
-    public Collection<GamePlayer> getPlayers() {
-        return players.values();
-    }
-
-    public boolean isRunning() { return isRunning; }
 }

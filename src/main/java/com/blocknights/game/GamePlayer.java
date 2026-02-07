@@ -1,46 +1,41 @@
 package com.blocknights.game;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import java.util.UUID;
 
 public class GamePlayer {
     
-    private final Player bukkitPlayer;
-    private double money; // "LMD" (Monnaie Arknights)
-    private int lives;    // "Defense Seals" (Vies)
-    private int kills;
+    private final UUID uuid;
+    private double money;
 
+    // Constructeur principal
+    public GamePlayer(UUID uuid, double money) {
+        this.uuid = uuid;
+        this.money = money;
+    }
+
+    // --- CORRECTION ERREUR 2 : Constructeur de commodité ---
+    // Permet de faire new GamePlayer(player) sans se soucier de l'argent (par défaut 0 ou config)
     public GamePlayer(Player player) {
-        this.bukkitPlayer = player;
-        // Valeurs par défaut (à configurer plus tard via map settings)
-        this.money = 1000.0; // De quoi acheter 2-3 opérateurs
-        this.lives = 30;
-        this.kills = 0;
+        this.uuid = player.getUniqueId();
+        this.money = 1000; // Argent par défaut si non spécifié
     }
 
-    public void addMoney(double amount) {
-        this.money += amount;
-    }
-
-    public boolean removeMoney(double amount) {
-        if (money >= amount) {
-            money -= amount;
-            return true;
-        }
-        return false;
-    }
-
-    public void removeLife(int amount) {
-        this.lives -= amount;
-        if (this.lives < 0) this.lives = 0;
-    }
-
-    public void addKill() {
-        this.kills++;
-    }
-
-    public Player getBukkitPlayer() { return bukkitPlayer; }
+    public UUID getUniqueId() { return uuid; }
+    
     public double getMoney() { return money; }
-    public int getLives() { return lives; }
-    public int getKills() { return kills; }
+    public void addMoney(double amount) { this.money += amount; }
+    public void removeMoney(double amount) { this.money = Math.max(0, this.money - amount); }
+
+    // Méthode standard
+    public Player getPlayer() {
+        return Bukkit.getPlayer(uuid);
+    }
+
+    // --- CORRECTION ERREURS 4,5,6,8,9 : Alias pour compatibilité ---
+    // Ton code appelle getBukkitPlayer(), donc on redirige vers getPlayer()
+    public Player getBukkitPlayer() {
+        return getPlayer();
+    }
 }

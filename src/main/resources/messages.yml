@@ -131,3 +131,25 @@ gui-deploy-stats: "&cHP: {hp} &7| &eATK: {atk}"
 gui-deploy-cost: "&7Coût: &e{cost} ⛃"
 gui-deploy-select: "&aClic pour déployer"
 gui-deploy-locked: "&cPas assez d'argent !"
+
+# ... (tes autres messages)
+
+# Scoreboard
+sb-title: "&6&lBlocknights"
+sb-separator: "&7----------------"
+sb-wave: "&e Vague: &f{current} / {max}"
+sb-enemies: "&c Ennemis: &f{count}"
+sb-nexus: "&b 💎 Nexus: &f{lives}"
+sb-money: "&6 ⛃ Crédits: &f{money}"
+sb-footer: "&7blocknights.net"
+
+# ... (tes autres messages)
+
+# Événements de Jeu
+nexus-damaged-chat: "&c⚠ Le Nexus a perdu {damage} vie(s) ! Restant: {lives}"
+nexus-damaged-title: "&c⚠ ALERTE"
+nexus-damaged-subtitle: "&cNexus attaqué !"
+
+game-over-chat: "&4&lGAME OVER ! &cLe Nexus est détruit."
+game-over-title: "&4DÉFAITE"
+game-over-subtitle: "&cLe Nexus est tombé..."

@@ -11,6 +11,7 @@ import com.blocknights.maps.MapManager;
 import com.blocknights.utils.LangManager;
 import com.blocknights.waves.WaveManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.blocknights.game.ScoreboardManager;
 
 public class BlocknightsPlugin extends JavaPlugin {
 
@@ -25,6 +26,7 @@ public class BlocknightsPlugin extends JavaPlugin {
     private WaveManager waveManager;
     private SessionManager sessionManager;
     private OperatorManager operatorManager;
+    private ScoreboardManager scoreboardManager;
 
     // --- Editor ---
     private EditorManager editorManager;
@@ -38,7 +40,7 @@ public class BlocknightsPlugin extends JavaPlugin {
         this.mapManager = new MapManager(this);
         this.waveManager = new WaveManager(this);
         this.sessionManager = new SessionManager(this);
-        this.operatorManager = new OperatorManager(this); // Fixe l'erreur rouge précédente
+        this.scoreboardManager = new ScoreboardManager(this);
 
         // 3. Initialiser l'Interface & Éditeur
         this.guiManager = new GuiManager(this);
@@ -55,7 +57,7 @@ public class BlocknightsPlugin extends JavaPlugin {
         // Gestion du déploiement des opérateurs (Clic droit avec item)
         getServer().getPluginManager().registerEvents(new DeploymentListener(this), this);
         getServer().getPluginManager().registerEvents(new com.blocknights.game.operator.InteractionListener(this), this);
-        
+        getServer().getPluginManager().registerEvents(new com.blocknights.game.operator.PlacementListener(this), this);
         getLogger().info("Blocknights V2 (Architecture Arknights) chargé avec succès !");
     }
 
@@ -86,4 +88,5 @@ public class BlocknightsPlugin extends JavaPlugin {
     public OperatorManager getOperatorManager() { return operatorManager; }
     
     public EditorManager getEditorManager() { return editorManager; }
+    public ScoreboardManager getScoreboardManager() { return scoreboardManager; }
 }

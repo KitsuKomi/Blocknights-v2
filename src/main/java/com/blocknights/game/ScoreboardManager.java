@@ -2,7 +2,6 @@ package com.blocknights.game;
 
 import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -11,67 +10,82 @@ import org.bukkit.scoreboard.*;
 public class ScoreboardManager {
 
     private final BlocknightsPlugin plugin;
+    private final Scoreboard scoreboard;
+    private final Objective objective;
 
     public ScoreboardManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
-        startUpdater();
+        this.scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        
+        // Titre via I18n
+        String title = plugin.getLang().getRaw("sb-title").replace("&", "§");
+        this.objective = scoreboard.registerNewObjective("blocknights", Criteria.DUMMY, Component.text(title));
+        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        
+        startUpdateTask();
     }
 
+    // CORRECTION : Renommé pour correspondre à l'appel dans SessionManager
     public void setupScoreboard(Player p) {
-        Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = board.registerNewObjective("bn_stats", Criteria.DUMMY, Component.text("§b§lBLOCKNIGHTS"));
-        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-        // Lignes statiques (pour l'instant, on mettra à jour via le runnable)
-        Score line1 = obj.getScore("§7----------------");
-        line1.setScore(15);
-
-        p.setScoreboard(board);
+        p.setScoreboard(scoreboard);
     }
 
-    private void startUpdater() {
+    public void removePlayer(Player p) {
+        p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+    }
+
+    private void startUpdateTask() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (!plugin.getSessionManager().isRunning()) return;
-
-                for (GamePlayer gp : plugin.getSessionManager().getPlayers()) {
-                    updateBoard(gp);
-                }
+                updateBoard();
             }
-        }.runTaskTimer(plugin, 0L, 20L); // Mise à jour toutes les secondes
+        }.runTaskTimer(plugin, 0L, 20L);
     }
 
-    private void updateBoard(GamePlayer gp) {
-        Scoreboard board = gp.getBukkitPlayer().getScoreboard();
-        Objective obj = board.getObjective("bn_stats");
-        if (obj == null) return;
-
-        // Astuce pour éviter le scintillement sans lib externe : 
-        // On utilise les Teams pour les valeurs dynamiques (c'est un peu verbeux mais natif)
-        // OU Méthode simple "Brutale" (reset scores) pour commencer :
-        
-        // Nettoyage (Méthode simple pour prototype)
-        for (String entry : board.getEntries()) {
-            if (entry.contains("§")) board.resetScores(entry);
+    private void updateBoard() {
+        // Nettoyage brut (méthode simple)
+        for (String entry : scoreboard.getEntries()) {
+            scoreboard.resetScores(entry);
         }
-        
-        // Réaffichage
+
+        // Données
         int wave = plugin.getWaveManager().getCurrentWave();
-        int maxWave = plugin.getWaveManager().getTotalWaves();
+        int maxWaves = plugin.getWaveManager().getTotalWaves();
+        int lives = plugin.getSessionManager().getNexusLives(); // Corrigé via étape 3
+        int enemies = plugin.getWaveManager().getEnemiesCount();
         
-        setScore(obj, "§7----------------", 15);
-        setScore(obj, "§fVague: §e" + wave + "§7/" + maxWave, 14);
-        setScore(obj, "§b ", 13);
-        setScore(obj, "§fLMD (Or): §6" + (int)gp.getMoney(), 12);
-        setScore(obj, "§fVies: §c" + gp.getLives() + " ❤", 11);
-        setScore(obj, "§a ", 10);
-        setScore(obj, "§fEnnemis: §c" + plugin.getWaveManager().getEnemiesCount(), 9);
-        setScore(obj, "§7---------------- ", 1);
+        // CORRECTION ERREUR COLLECTION :
+        // getPlayers() retourne une Collection, on ne peut pas faire .get(0).
+        // On prend le premier joueur trouvé (système solo/coop simple)
+        double money = 0;
+        var players = plugin.getSessionManager().getPlayers();
+        if (!players.isEmpty()) {
+            money = players.iterator().next().getMoney();
+        }
+
+        // Affichage I18N
+        score(txt("sb-separator"), 10);
+        score(txt("sb-wave", "{current}", String.valueOf(wave), "{max}", String.valueOf(maxWaves)), 9);
+        score(txt("sb-enemies", "{count}", String.valueOf(enemies)), 8);
+        score("§f ", 7); // Espace vide
+        score(txt("sb-nexus", "{lives}", String.valueOf(lives)), 6);
+        score(txt("sb-money", "{money}", String.valueOf((int)money)), 5);
+        score(txt("sb-separator"), 4);
+        score(txt("sb-footer"), 3);
+    }
+
+    private void score(String text, int score) {
+        objective.getScore(text).setScore(score);
     }
     
-    private void setScore(Objective obj, String text, int score) {
-        Score s = obj.getScore(text);
-        s.setScore(score);
+    // Helper pour récupérer et formater le texte
+    private String txt(String key, String... placeholders) {
+        String msg = plugin.getLang().getRaw(key);
+        for (int i = 0; i < placeholders.length - 1; i += 2) {
+            msg = msg.replace(placeholders[i], placeholders[i + 1]);
+        }
+        return msg.replace("&", "§");
     }
 }
