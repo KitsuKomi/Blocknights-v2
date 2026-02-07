@@ -1,0 +1,18 @@
+prefix: "&8[&6Blocknights&8] &r"
+
+# Commandes
+no-permission: "&cVous n'avez pas la permission."
+only-player: "&cSeuls les joueurs peuvent faire ça."
+command-unknown: "&cCommande inconnue."
+
+# Jeu
+game-start: "&a&lMISSION START ! &eDéfendez le Nexus."
+game-stop: "&eLa mission a été arrêtée."
+game-over: "&c&lMISSION FAILED. &7Le Nexus est détruit."
+wave-start: "&6--- VAGUE {wave} ---"
+nexus-damage: "&c⚠ Le Nexus a pris des dégâts ! Vies restantes: {lives}"
+
+# Opérateurs
+op-placed: "&aOpérateur {name} déployé !"
+op-no-money: "&cPas assez de LMD ! Manque &e{amount} ⛃"
+op-limit: "&cNombre max d'opérateurs atteint."

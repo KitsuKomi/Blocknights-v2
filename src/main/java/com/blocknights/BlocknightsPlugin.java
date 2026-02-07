@@ -7,9 +7,7 @@ import com.blocknights.game.operator.OperatorManager;
 import com.blocknights.maps.MapManager;
 import com.blocknights.waves.WaveManager;
 import com.blocknights.commands.BnCommands;
-// Import corrigé pour le Listener
 import com.blocknights.editor.WandListener;
-
 public class BlocknightsPlugin extends JavaPlugin {
 
     private static BlocknightsPlugin instance;
@@ -19,6 +17,8 @@ public class BlocknightsPlugin extends JavaPlugin {
     private WaveManager waveManager;
     private OperatorManager operatorManager;
     private com.blocknights.editor.EditorManager editorManager;
+    private com.blocknights.gui.GuiManager guiManager;
+    private com.blocknights.utils.LangManager langManager;
 
     @Override
     public void onEnable() {
@@ -30,7 +30,9 @@ public class BlocknightsPlugin extends JavaPlugin {
         this.waveManager = new WaveManager(this);
         this.editorManager = new com.blocknights.editor.EditorManager(this);
         this.sessionManager = new SessionManager(this);
-        
+        this.guiManager = new com.blocknights.gui.GuiManager(this);
+        this.langManager = new com.blocknights.utils.LangManager(this);
+
         // Enregistrement avec le bon import
         getServer().getPluginManager().registerEvents(new WandListener(this), this);
         
@@ -53,4 +55,5 @@ public class BlocknightsPlugin extends JavaPlugin {
     public WaveManager getWaveManager() { return waveManager; }
     public OperatorManager getOperatorManager() { return operatorManager; }
     public com.blocknights.editor.EditorManager getEditorManager() { return editorManager; }
+    public com.blocknights.utils.LangManager getLang() { return langManager; }
 }

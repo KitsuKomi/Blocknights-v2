@@ -1,6 +1,8 @@
 package com.blocknights.commands;
 
 import com.blocknights.BlocknightsPlugin;
+import com.blocknights.maps.BnMap;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
@@ -66,6 +68,24 @@ public class BnCommands implements CommandExecutor {
                 
             case "op":
                 plugin.getOperatorManager().placeOperator(p);
+                break;
+                // Dans BnCommands.java
+            case "waves":
+                BnMap map = plugin.getMapManager().getActiveMap();
+                if (map == null) {
+                    p.sendMessage("§cAucune map chargée !");
+                    return true;
+                }
+                new com.blocknights.waves.WaveEditorGui(plugin, p, map).open(p);
+                break;
+            case "reload":
+                if (!p.hasPermission("blocknights.admin")) {
+                    plugin.getLang().send(p, "no-permission");
+                    return true;
+                }
+                plugin.getLang().loadMessages();
+                // On pourrait aussi recharger les configs de maps/waves ici
+                p.sendMessage(Component.text("§aConfiguration rechargée !"));
                 break;
             case "map":
                 if (args.length < 2) {

@@ -4,63 +4,109 @@ import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Sound;
+import org.bukkit.entity.Player;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public class SessionManager {
 
     private final BlocknightsPlugin plugin;
+    private final ScoreboardManager scoreboardManager;
     private boolean isRunning = false;
-    private int nexusLife = 20;
+    
+    private final Map<UUID, GamePlayer> players = new HashMap<>();
 
     public SessionManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
-        
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (isRunning) {
-                    tick();
-                }
-            }
-        }.runTaskTimer(plugin, 20L, 1L);
-    }
-
-    private void tick() {
-        plugin.getWaveManager().tick();
-        plugin.getOperatorManager().tick();
+        this.scoreboardManager = new ScoreboardManager(plugin);
     }
 
     public void startGame() {
-        if (plugin.getMapManager().getPath().size() < 2) {
-            Bukkit.broadcast(Component.text("Impossible de lancer : Chemin non défini !", NamedTextColor.RED));
+        if (isRunning) return;
+        if (plugin.getMapManager().getActiveMap() == null) {
+            Bukkit.broadcast(Component.text("Aucune map chargée !", NamedTextColor.RED));
             return;
         }
-        
-        this.nexusLife = 20;
-        this.isRunning = true;
-        
+
+        isRunning = true;
+        players.clear();
+
+        // Setup des joueurs
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            GamePlayer gp = new GamePlayer(p);
+            players.put(p.getUniqueId(), gp);
+            
+            // Initialisation Scoreboard
+            scoreboardManager.setupScoreboard(p);
+            
+            p.sendMessage(Component.text("=== MISSION START ===", NamedTextColor.GOLD));
+            p.playSound(p.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1f, 1f);
+        }
+
         plugin.getWaveManager().startWave();
-        
-        Bukkit.broadcast(Component.text("=== BLOCKNIGHTS V2 : START ===", NamedTextColor.GREEN));
     }
 
     public void stopGame() {
-        this.isRunning = false;
+        if (!isRunning) return;
+        isRunning = false;
+        
         plugin.getWaveManager().clearAll();
-        Bukkit.broadcast(Component.text("Partie terminée.", NamedTextColor.YELLOW));
+        
+        // Reset Scoreboard
+        for (GamePlayer gp : players.values()) {
+            gp.getBukkitPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+        }
+        players.clear();
+        
+        Bukkit.broadcast(Component.text("Mission Terminée.", NamedTextColor.YELLOW));
     }
 
-    public void damageNexus(int amount) {
-        this.nexusLife -= amount;
+    public void damageNexus(int damage) {
+        if (!isRunning) return;
         
-        // Alerte rouge quand on prend des dégâts
-        Bukkit.broadcast(Component.text("Nexus touché ! Vies restantes : " + nexusLife, NamedTextColor.RED));
-        
-        if (this.nexusLife <= 0) {
-            Bukkit.broadcast(Component.text("DEFAITE !", NamedTextColor.DARK_RED));
-            stopGame();
+        // Mode Coop : Dégâts partagés
+        for (GamePlayer gp : players.values()) {
+            gp.removeLife(damage);
+            gp.getBukkitPlayer().playSound(gp.getBukkitPlayer().getLocation(), Sound.ENTITY_PLAYER_HURT, 1f, 1f);
+            
+            if (gp.getLives() <= 0) {
+                failGame();
+                return;
+            }
         }
     }
     
+    private void failGame() {
+        Bukkit.broadcast(Component.text("=== MISSION FAILED ===", NamedTextColor.DARK_RED));
+        Bukkit.broadcast(Component.text("Le Nexus a été détruit.", NamedTextColor.RED));
+        for (GamePlayer gp : players.values()) {
+            gp.getBukkitPlayer().playSound(gp.getBukkitPlayer().getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
+        }
+        stopGame();
+    }
+
+    public void rewardPlayer(Player p, double money) {
+        // Si null (ex: kill par une tour sans propriétaire direct), on partage ?
+        // Pour l'instant on donne à tout le monde (Coop simple)
+        if (p == null) {
+            for (GamePlayer gp : players.values()) gp.addMoney(money);
+        } else {
+            GamePlayer gp = players.get(p.getUniqueId());
+            if (gp != null) gp.addMoney(money);
+        }
+    }
+
+    public GamePlayer getGamePlayer(Player p) {
+        return players.get(p.getUniqueId());
+    }
+    
+    public Collection<GamePlayer> getPlayers() {
+        return players.values();
+    }
+
     public boolean isRunning() { return isRunning; }
 }

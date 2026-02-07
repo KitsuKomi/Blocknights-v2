@@ -55,9 +55,6 @@ Chaque item du menu représente un outil :
 - Bouton “Tester la map”
 
 3.2 Wands d’édition
-Wand Spawn/End
-- Clic gauche → définir Spawn
-- Clic droit → définir End
 Wand Path
 - Clic gauche → ajouter un point de path
 - Clic droit → retirer le dernier point
