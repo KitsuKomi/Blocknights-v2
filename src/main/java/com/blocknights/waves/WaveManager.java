@@ -4,8 +4,6 @@ import com.blocknights.BlocknightsPlugin;
 import com.blocknights.data.WaveDefinition;
 import com.blocknights.data.WaveGroup;
 import com.blocknights.maps.BnMap;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;

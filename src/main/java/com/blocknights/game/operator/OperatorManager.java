@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class OperatorManager {
 
@@ -24,6 +25,7 @@ public class OperatorManager {
     
     private final Map<String, OperatorDefinition> catalog = new HashMap<>();
     private final List<GameOperator> activeOperators = new ArrayList<>();
+    private final Map<UUID, OperatorDefinition> pendingPlacements = new HashMap<>();
 
     public OperatorManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
@@ -39,6 +41,24 @@ public class OperatorManager {
         plugin.getLogger().info(catalog.size() + " opérateurs chargés.");
     }
 
+    public void selectOperatorForPlacement(Player p, OperatorDefinition def) {
+            pendingPlacements.put(p.getUniqueId(), def);
+            
+            // Message de confirmation (via LangManager si possible, sinon brut pour l'instant)
+            plugin.getLang().send(p, "deploy-selected", "{name}", def.getName());
+            
+            // Petit son pour confirmer
+            p.playSound(p.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 1f, 1f);
+        }
+
+        public OperatorDefinition getPendingOperator(Player p) {
+            return pendingPlacements.get(p.getUniqueId());
+        }
+
+        public void clearPending(Player p) {
+            pendingPlacements.remove(p.getUniqueId());
+        }
+        
     public Map<String, OperatorDefinition> getCatalog() { return catalog; }
     public List<GameOperator> getActiveOperators() { return activeOperators; }
 

@@ -4,12 +4,8 @@ import com.blocknights.BlocknightsPlugin;
 import com.blocknights.game.GamePlayer;
 import com.blocknights.gui.InventoryGui;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Material;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 public class DeploymentGui extends InventoryGui {
 
@@ -17,74 +13,63 @@ public class DeploymentGui extends InventoryGui {
     private final Player player;
 
     public DeploymentGui(BlocknightsPlugin plugin, Player player) {
-        super(9, Component.text("Déploiement")); // Une seule ligne (Hotbar style)
+        // Titre via LangManager
+        super(54, Component.text(plugin.getLang().getRaw("gui-deploy-title")));
         this.plugin = plugin;
         this.player = player;
     }
 
     @Override
     public void init() {
-        // Pour l'instant, on hardcode 2 opérateurs.
-        // Plus tard, on récupérera le "Deck" du joueur depuis sa config.
-        
-        // Slot 0 : Sniper
-        addOperatorButton(0, "sniper", Material.BOW, "Sniper", 100);
-        
-        // Slot 1 : Caster
-        addOperatorButton(1, "caster", Material.POTION, "Caster", 250);
-        
-        // Slot 2 : Defender (Futur)
-        addOperatorButton(2, "defender", Material.SHIELD, "Defender", 300);
-    }
-
-    private void addOperatorButton(int slot, String opId, Material icon, String name, double cost) {
         GamePlayer gp = plugin.getSessionManager().getGamePlayer(player);
-        boolean canAfford = gp.getMoney() >= cost;
+        int slot = 0;
 
-        // Couleur : Vert si on peut acheter, Rouge sinon
-        String color = canAfford ? "§a" : "§c";
-        
-        ItemStack item = createItem(icon, 
-            color + name, 
-            "§7Coût: §e" + (int)cost + " ⛃",
-            "",
-            canAfford ? "§eClic pour sélectionner" : "§cPas assez de LMD"
-        );
+        // On parcourt TOUS les opérateurs chargés
+        for (OperatorDefinition def : plugin.getOperatorManager().getCatalog().values()) {
+            if (slot >= 54) break;
 
-        setItem(slot, item, e -> {
-            if (!canAfford) {
-                plugin.getLang().send(player, "op-no-money", "{amount}", String.valueOf(cost));
-                return;
-            }
+            boolean canAfford = gp.getMoney() >= def.getCost();
+            
+            // État du lore (Vert ou Rouge selon l'argent)
+            String statusLine = canAfford 
+                ? plugin.getLang().getRaw("gui-deploy-select") 
+                : plugin.getLang().getRaw("gui-deploy-locked");
 
-            // Donner l'item de déploiement au joueur
-            giveDeploymentItem(player, opId, name, cost, icon);
-            player.closeInventory();
-        });
+            // Construction de l'item avec placeholders
+            ItemStack item = createItem(
+                def.getIcon().getType(), // Material
+                txt("gui-deploy-name", "{name}", def.getName()), // Nom
+                // Lore :
+                txt("gui-deploy-class", "{class}", def.getEntityType().name()),
+                txt("gui-deploy-stats", "{hp}", String.valueOf((int)def.getMaxHealth()), "{atk}", String.valueOf((int)def.getAtk())),
+                "",
+                txt("gui-deploy-cost", "{cost}", String.valueOf(def.getCost())),
+                statusLine
+            );
+
+            setItem(slot, item, e -> {
+                // 1. Vérification Argent
+                if (!canAfford) {
+                    double missing = def.getCost() - gp.getMoney();
+                    plugin.getLang().send(player, "op-no-money", "{amount}", String.valueOf((int)missing));
+                    return;
+                }
+
+                // 2. Logique de Sélection (On ne pose pas tout de suite, on sélectionne)
+                plugin.getOperatorManager().selectOperatorForPlacement(player, def);
+                player.closeInventory();
+            });
+
+            slot++;
+        }
     }
 
-    private void giveDeploymentItem(Player p, String opId, String name, double cost, Material icon) {
-        ItemStack item = new ItemStack(icon);
-        item.editMeta(meta -> {
-            meta.displayName(Component.text("§aDéployer : " + name));
-            
-            // CORRECTION ICI : "lore" au lieu de "setLore"
-            meta.lore(java.util.List.of(
-                Component.text("§7Coût: §e" + (int)cost), 
-                Component.text("§7Clic Droit sur une tuile verte")
-            ));
-            
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            
-            // Stockage de l'ID (Opérateur)
-            meta.getPersistentDataContainer().set(
-                new org.bukkit.NamespacedKey(plugin, "op_id"), 
-                PersistentDataType.STRING, 
-                opId
-            );
-        });
-
-        p.getInventory().setItemInMainHand(item);
-        p.sendMessage(Component.text("§eSélectionnez une zone de déploiement (Particules Vertes)."));
+    // Petit helper local pour simplifier les .replace() dans le GUI
+    private String txt(String key, String... placeholders) {
+        String msg = plugin.getLang().getRaw(key);
+        for (int i = 0; i < placeholders.length - 1; i += 2) {
+            msg = msg.replace(placeholders[i], placeholders[i + 1]);
+        }
+        return msg.replace("&", "§");
     }
 }

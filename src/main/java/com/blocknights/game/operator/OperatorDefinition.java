@@ -1,7 +1,10 @@
 package com.blocknights.game.operator;
 
 import com.blocknights.data.DamageType;
+
+import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
+import org.bukkit.inventory.ItemStack;
 
 public class OperatorDefinition {
     
@@ -47,7 +50,18 @@ public class OperatorDefinition {
         this.skinTexture = skinTexture;
         this.skinSignature = skinSignature;
     }
-
+    
+    public ItemStack getIcon() {
+        // Essaie de trouver l'oeuf de spawn correspondant (ex: ZOMBIE_SPAWN_EGG)
+        Material mat = Material.getMaterial(entityType.name() + "_SPAWN_EGG");
+        
+        // Si pas d'oeuf (ex: PLAYER), on met une tête
+        if (mat == null) {
+            mat = Material.PLAYER_HEAD;
+        }
+        
+        return new ItemStack(mat);
+    }
     // Getters
     public String getId() { return id; }
     public String getName() { return name; }

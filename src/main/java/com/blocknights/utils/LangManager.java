@@ -20,6 +20,24 @@ public class LangManager {
         loadMessages();
     }
 
+    public void broadcast(String key, String... placeholders) {
+        String msg = getRaw(key); // Récupère le message brut
+        
+        // Remplace les {variables}
+        for (int i = 0; i < placeholders.length - 1; i += 2) {
+            msg = msg.replace(placeholders[i], placeholders[i + 1]);
+        }
+        
+        // Applique les couleurs
+        msg = msg.replace("&", "§");
+        
+        // Ajoute le préfixe global si tu en as un (optionnel)
+        String prefix = messages.getOrDefault("prefix", "§8[§bBlocknights§8] §r");
+        
+        // Envoie à tout le serveur
+        plugin.getServer().broadcast(net.kyori.adventure.text.Component.text(prefix + msg));
+    }
+    
     public void loadMessages() {
         File file = new File(plugin.getDataFolder(), "messages.yml");
         if (!file.exists()) {

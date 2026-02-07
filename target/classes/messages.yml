@@ -5,6 +5,28 @@ no-permission: "&cVous n'avez pas la permission."
 only-player: "&cSeuls les joueurs peuvent faire ça."
 command-unknown: "&cCommande inconnue."
 
+# --- COMMANDES ---
+cmd-player-only: "&cSeul un joueur peut utiliser cette commande."
+cmd-no-permission: "&cVous n'avez pas la permission."
+cmd-reload-success: "&aConfiguration et Opérateurs rechargés !"
+
+# Map
+cmd-map-usage: "&cUsage: /bn map <create/load> <nom>"
+cmd-map-created: "&aMap '{name}' créée avec succès."
+cmd-map-loaded: "&aMap '{name}' chargée."
+cmd-map-not-found: "&cMap introuvable."
+map-none-active: "&cAucune map n'est chargée actuellement."
+
+# Editeur
+cmd-lane-usage: "&cUsage: /bn lane <0/1/2...>"
+cmd-lane-invalid: "&cNuméro de ligne invalide."
+editor-point-added: "&aPoint ajouté à la ligne {lane}."
+
+# Jeu
+game-already-started: "&cLa partie est déjà en cours !"
+game-not-started: "&cLa partie n'est pas lancée."
+menu-coming-soon: "&eMenu de déploiement à venir..."
+
 # Jeu
 game-start: "&a&lMISSION START ! &eDéfendez le Nexus."
 game-stop: "&eLa mission a été arrêtée."
@@ -100,3 +122,12 @@ gui-group-return: "&aSauvegarder et Retour"
 gui-hint-cycle: "&7Clic pour changer"
 gui-hint-maths: "&eClic G: +{small} | Clic D: -{small}"
 gui-hint-maths-shift: "&6Shift: +/- {big}"
+
+# GUI Déploiement
+gui-deploy-title: "Recrutement"
+gui-deploy-name: "&b{name}"
+gui-deploy-class: "&7Classe: &f{class}"
+gui-deploy-stats: "&cHP: {hp} &7| &eATK: {atk}"
+gui-deploy-cost: "&7Coût: &e{cost} ⛃"
+gui-deploy-select: "&aClic pour déployer"
+gui-deploy-locked: "&cPas assez d'argent !"
