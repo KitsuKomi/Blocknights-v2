@@ -1,6 +1,7 @@
 package com.blocknights.editor;
 
 import com.blocknights.BlocknightsPlugin;
+import com.blocknights.maps.BnMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
@@ -16,31 +17,43 @@ import java.util.*;
 
 public class EditorManager {
 
+    public enum EditorMode { PATH, SPOTS }
+
     private final BlocknightsPlugin plugin;
-    // On stocke quelle ligne le joueur est en train d'éditer (Joueur -> Index Ligne)
+    
+    // Joueurs en mode éditeur -> Ligne sélectionnée
     private final Map<UUID, Integer> playerLanes = new HashMap<>();
+    // Joueurs -> Mode actuel (Chemin ou Tuiles)
+    private final Map<UUID, EditorMode> editorModes = new HashMap<>();
 
     public EditorManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
         startVisualizer();
     }
 
+    // --- Gestion Activation ---
     public void toggleEditor(Player player) {
         if (playerLanes.containsKey(player.getUniqueId())) {
             playerLanes.remove(player.getUniqueId());
+            editorModes.remove(player.getUniqueId());
             player.getInventory().remove(Material.BLAZE_ROD);
             player.sendMessage(Component.text("Mode Éditeur désactivé.", NamedTextColor.YELLOW));
         } else {
-            playerLanes.put(player.getUniqueId(), 0); // Par défaut : Ligne 0
+            playerLanes.put(player.getUniqueId(), 0);
+            editorModes.put(player.getUniqueId(), EditorMode.PATH);
             giveWand(player);
-            player.sendMessage(Component.text("Mode Éditeur activé (Ligne 0) !", NamedTextColor.GREEN));
+            player.sendMessage(Component.text("Mode Éditeur activé !", NamedTextColor.GREEN));
         }
     }
 
+    public boolean isEditor(Player player) {
+        return playerLanes.containsKey(player.getUniqueId());
+    }
+
+    // --- Gestion Modes & Lanes ---
     public void selectLane(Player p, int laneIndex) {
         if (!isEditor(p)) return;
         if (laneIndex < 0) laneIndex = 0;
-        
         playerLanes.put(p.getUniqueId(), laneIndex);
         p.sendMessage(Component.text("Édition de la Ligne " + laneIndex, NamedTextColor.AQUA));
     }
@@ -49,19 +62,35 @@ public class EditorManager {
         return playerLanes.getOrDefault(p.getUniqueId(), 0);
     }
 
-    public boolean isEditor(Player player) {
-        return playerLanes.containsKey(player.getUniqueId());
+    public void toggleMode(Player p) {
+        EditorMode current = editorModes.getOrDefault(p.getUniqueId(), EditorMode.PATH);
+        if (current == EditorMode.PATH) {
+            editorModes.put(p.getUniqueId(), EditorMode.SPOTS);
+            plugin.getLang().send(p, "editor-mode-spots");
+        } else {
+            editorModes.put(p.getUniqueId(), EditorMode.PATH);
+            plugin.getLang().send(p, "editor-mode-path");
+        }
     }
 
+    public EditorMode getMode(Player p) {
+        return editorModes.getOrDefault(p.getUniqueId(), EditorMode.PATH);
+    }
+
+    // --- Outils ---
     private void giveWand(Player player) {
         ItemStack wand = new ItemStack(Material.BLAZE_ROD);
         ItemMeta meta = wand.getItemMeta();
         meta.displayName(Component.text("Baguette d'Éditeur", NamedTextColor.GOLD));
-        meta.lore(List.of(Component.text("Clic G: Point | Clic D: Undo", NamedTextColor.YELLOW)));
+        meta.lore(List.of(
+            Component.text("Clic G: Ajouter | Clic D: Retirer", NamedTextColor.YELLOW),
+            Component.text("Sneak + Clic D: Changer Mode", NamedTextColor.GRAY)
+        ));
         wand.setItemMeta(meta);
         player.getInventory().addItem(wand);
     }
 
+    // --- Visualiseur ---
     private void startVisualizer() {
         new BukkitRunnable() {
             @Override
@@ -71,24 +100,27 @@ public class EditorManager {
                 var map = plugin.getMapManager().getActiveMap();
                 if (map == null) return;
 
+                // 1. Visualiser les Chemins (Lanes)
                 List<List<Location>> lanes = map.getLanes();
-
-                // On boucle sur TOUTES les lignes
                 for (int i = 0; i < lanes.size(); i++) {
                     List<Location> path = lanes.get(i);
                     if (path.isEmpty()) continue;
 
-                    // Couleur différente pour la ligne 0 (Principale) et les autres
                     Particle lineParticle = (i == 0) ? Particle.HAPPY_VILLAGER : Particle.WAX_ON;
 
-                    // Tracer les segments
                     for (int j = 0; j < path.size() - 1; j++) {
                         drawLine(path.get(j), path.get(j + 1), lineParticle);
                     }
                     
-                    // Marquer Spawn (Bleu) et Fin (Orange)
+                    // Marqueurs
                     path.get(0).getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, path.get(0), 5, 0, 0, 0, 0);
                     path.get(path.size() - 1).getWorld().spawnParticle(Particle.LAVA, path.get(path.size() - 1), 5, 0, 0, 0, 0);
+                }
+
+                // 2. Visualiser les Tuiles (Spots)
+                for (Location spot : map.getSpots()) {
+                    // Particule au-dessus du bloc
+                    spot.getWorld().spawnParticle(Particle.COMPOSTER, spot.clone().add(0, 1.2, 0), 1);
                 }
             }
         }.runTaskTimer(plugin, 0L, 10L);
@@ -99,15 +131,9 @@ public class EditorManager {
         double step = 0.5;
         Vector direction = p2.toVector().subtract(p1.toVector()).normalize();
         
-        boolean blocked = false;
-
         for (double d = 0; d < dist; d += step) {
             Location loc = p1.clone().add(direction.clone().multiply(d));
-            if (loc.getBlock().getType().isSolid()) blocked = true;
-            
-            // Rouge si bloqué, sinon la couleur de la ligne
-            Particle p = blocked ? Particle.FLAME : particleType;
-            loc.getWorld().spawnParticle(p, loc, 1, 0, 0, 0, 0);
+            loc.getWorld().spawnParticle(particleType, loc, 1, 0, 0, 0, 0);
         }
     }
 }

@@ -16,3 +16,14 @@ nexus-damage: "&c⚠ Le Nexus a pris des dégâts ! Vies restantes: {lives}"
 op-placed: "&aOpérateur {name} déployé !"
 op-no-money: "&cPas assez de LMD ! Manque &e{amount} ⛃"
 op-limit: "&cNombre max d'opérateurs atteint."
+
+# Éditeur
+editor-mode-spots: "&eMode: PLACEMENT DES TUILES (Spots) &7(Clic G: Ajouter, Clic D: Retirer)"
+editor-mode-path: "&aMode: TRACÉ DU CHEMIN"
+spot-added: "&aTuile de déploiement ajoutée !"
+spot-removed: "&eTuile retirée."
+spot-already-valid: "&cCette tuile est déjà valide."
+
+# Erreurs Déploiement
+op-invalid-spot: "&cZone de déploiement invalide ! &7(Utilisez l'éditeur pour ajouter des spots)"
+op-spot-taken: "&cEmplacement déjà occupé par un opérateur."

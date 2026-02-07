@@ -3,17 +3,22 @@ package com.blocknights.maps;
 import com.blocknights.data.WaveDefinition;
 import org.bukkit.Location;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class BnMap {
     private final String id;
     private String displayName;
     
-    // Données de chemin
+    // Données de chemin (Lanes)
     private final List<List<Location>> lanes = new ArrayList<>();
     
-    // Données de vagues (Propre à cette map)
+    // Données de vagues
     private final List<WaveDefinition> waves = new ArrayList<>();
+
+    // Données de construction (Tuiles valides)
+    private final Set<Location> buildableSpots = new HashSet<>();
 
     public BnMap(String id) {
         this.id = id;
@@ -43,6 +48,30 @@ public class BnMap {
         }
     }
 
+    // --- Gestion des Spots (Zones Constructibles) ---
+    public void addSpot(Location loc) {
+        buildableSpots.add(getBlockCenter(loc));
+    }
+
+    public void removeSpot(Location loc) {
+        buildableSpots.remove(getBlockCenter(loc));
+    }
+
+    public boolean isBuildable(Location loc) {
+        return buildableSpots.contains(getBlockCenter(loc));
+    }
+    
+    public Set<Location> getSpots() { return buildableSpots; }
+
+    // Helper pour centrer (x.5, y.0, z.5)
+    private Location getBlockCenter(Location loc) {
+        return new Location(loc.getWorld(), 
+            loc.getBlockX() + 0.5, 
+            loc.getBlockY(), 
+            loc.getBlockZ() + 0.5);
+    }
+
+    // --- Getters Standard ---
     public String getId() { return id; }
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
