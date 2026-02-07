@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.util.Vector;
+import com.blocknights.game.operator.GameOperator;
 
 import java.util.*;
 
@@ -141,18 +142,53 @@ public class WaveManager {
         Iterator<LivingEntity> it = activeEnemies.iterator();
         var map = plugin.getMapManager().getActiveMap();
         
+        // On récupère la liste des opérateurs pour tester les collisions
+        // (Assure-toi d'avoir ajouté le getter getActiveOperators() dans OperatorManager !)
+        List<GameOperator> operators = plugin.getOperatorManager().getActiveOperators();
+        
         while (it.hasNext()) {
             LivingEntity enemy = it.next();
             
             if (enemy.isDead() || !enemy.isValid()) {
-                // Nettoyage silencieux (mort naturelle ou kill command)
-                // Si tué par joueur/tour, c'est onEnemyKilled qui gère
                 enemyPathIndex.remove(enemy.getUniqueId());
                 enemyLaneIndex.remove(enemy.getUniqueId());
                 it.remove();
                 continue;
             }
             
+            // --- LOGIQUE DE BLOCAGE ---
+            boolean isBlocked = false;
+            
+            for (GameOperator op : operators) {
+                // Si l'opérateur est un "Bloqueur" (blockCount > 0)
+                // ET qu'il est tout près de l'ennemi (< 0.8 bloc)
+                if (op.getLocation().distance(enemy.getLocation()) < 0.8) {
+                    
+                    // Cas 1: L'ennemi est DÉJÀ bloqué par lui -> Il reste bloqué
+                    if (op.getBlockedEnemies().contains(enemy)) {
+                        isBlocked = true;
+                        break;
+                    }
+                    
+                    // Cas 2: L'ennemi ARRIVE et l'opérateur a de la place -> On le bloque
+                    if (op.canBlock()) {
+                        op.addBlockedEnemy(enemy);
+                        isBlocked = true;
+                        break;
+                    }
+                    
+                    // Cas 3: L'opérateur est plein -> L'ennemi passe à travers (Arknights logic)
+                }
+            }
+
+            if (isBlocked) {
+                // STOP ! On n'avance pas sur le chemin.
+                enemy.setVelocity(new Vector(0, 0, 0));
+                // (Plus tard, on ajoutera ici: enemy.attack(operator))
+                continue; 
+            }
+            // ---------------------------
+
             enemy.customName(Component.text("PV: " + (int)enemy.getHealth(), NamedTextColor.RED));
 
             int lane = enemyLaneIndex.get(enemy.getUniqueId());
@@ -160,7 +196,6 @@ public class WaveManager {
             int targetIndex = enemyPathIndex.get(enemy.getUniqueId());
 
             if (targetIndex >= path.size()) {
-                // Arrivé au Nexus
                 plugin.getSessionManager().damageNexus(1);
                 removeEnemy(enemy, it);
                 continue;

@@ -1,36 +1,52 @@
 package com.blocknights.game.operator;
 
 import com.blocknights.BlocknightsPlugin;
+import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.api.trait.trait.Equipment;
+import net.citizensnpcs.trait.SkinTrait;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.util.Vector;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class GameOperator {
 
     private final OperatorDefinition definition;
-    private final LivingEntity entity;
+    private final NPC npc; // <--- C'est lui le patron maintenant
     private long lastAttackTime = 0;
+    
+    private final List<LivingEntity> blockedEnemies = new ArrayList<>();
 
-    public GameOperator(OperatorDefinition definition, LivingEntity entity) {
+    public GameOperator(OperatorDefinition definition, NPC npc) {
         this.definition = definition;
-        this.entity = entity;
-        
-        // Configuration "Statue"
-        entity.setAI(false);
-        entity.setGravity(false);
-        entity.setInvulnerable(true);
-        entity.setSilent(true);
-        entity.setCustomNameVisible(true);
-        entity.customName(net.kyori.adventure.text.Component.text("§b" + definition.getName()));
+        this.npc = npc;
     }
 
+    // --- Logique Blocage (Inchangée) ---
+    public boolean canBlock() {
+        blockedEnemies.removeIf(e -> e.isDead() || !e.isValid());
+        return blockedEnemies.size() < definition.getBlockCount();
+    }
+
+    public void addBlockedEnemy(LivingEntity enemy) {
+        if (!blockedEnemies.contains(enemy)) blockedEnemies.add(enemy);
+    }
+    
+    public List<LivingEntity> getBlockedEnemies() { return blockedEnemies; }
+
+    // --- Boucle ---
     public void tick(BlocknightsPlugin plugin) {
-        if (!entity.isValid()) return;
+        if (!npc.isSpawned()) return;
 
         long now = System.currentTimeMillis();
-        long cooldownMs = definition.getAttackSpeed() * 50L;
+        long cooldownMs = definition.getAttackSpeed() * 50L; // 50ms par tick
 
         if (now - lastAttackTime < cooldownMs) return;
 
@@ -42,15 +58,19 @@ public class GameOperator {
     }
 
     private LivingEntity findTarget(BlocknightsPlugin plugin) {
+        // ... (Logique inchangée : target blocked first, then closest) ...
+        // Juste remplacer entity.getLocation() par npc.getStoredLocation()
+        
+        if (!blockedEnemies.isEmpty()) return blockedEnemies.get(0);
+
         LivingEntity bestTarget = null;
         double minDistSq = definition.getRange() * definition.getRange();
+        Location myLoc = npc.getStoredLocation();
 
         for (LivingEntity enemy : plugin.getWaveManager().getEnemies()) {
             if (enemy.isDead() || !enemy.isValid()) continue;
-
-            double distSq = enemy.getLocation().distanceSquared(entity.getLocation());
-            if (distSq <= minDistSq) {
-                minDistSq = distSq;
+            if (enemy.getLocation().distanceSquared(myLoc) <= minDistSq) {
+                minDistSq = enemy.getLocation().distanceSquared(myLoc);
                 bestTarget = enemy;
             }
         }
@@ -58,38 +78,28 @@ public class GameOperator {
     }
 
     private void attack(LivingEntity target) {
-        // Rotation visuelle
-        lookAt(target.getLocation());
-
-        // Effet Visuel (Raycast simple)
-        Location start = entity.getEyeLocation();
-        Location end = target.getEyeLocation();
-        Vector dir = end.toVector().subtract(start.toVector()).normalize();
+        // 1. Animation Citizens : Regarder la cible
+        npc.faceLocation(target.getLocation());
         
-        double dist = start.distance(end);
-        for (double d = 0; d < dist; d += 0.5) {
-            Location p = start.clone().add(dir.clone().multiply(d));
-            p.getWorld().spawnParticle(Particle.CRIT, p, 1, 0, 0, 0, 0);
+        // 2. Animation Citizens : Coup de main (Arm Swing)
+        if (npc.getEntity() instanceof Player) {
+            ((Player) npc.getEntity()).swingMainHand();
         }
-        
-        // Audio & Dégâts
-        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_ARROW_SHOOT, 0.5f, 2.0f);
-        target.damage(definition.getDamage());
-    }
 
-    private void lookAt(Location targetLoc) {
-        Location loc = entity.getLocation();
-        Vector dir = targetLoc.toVector().subtract(loc.toVector()).normalize();
-        Location look = loc.clone().setDirection(dir);
-        entity.teleport(look);
+        // 3. Effets
+        Location loc = npc.getStoredLocation().add(0, 1, 0);
+        loc.getWorld().playSound(loc, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 1f);
+        
+        // 4. Dégâts
+        target.damage(definition.getAtk());
     }
     
     public void remove() {
-        if (entity != null) entity.remove();
+        // IMPORTANT : Détruire le NPC proprement
+        npc.destroy();
+        blockedEnemies.clear();
     }
-
-    // C'EST CETTE MÉTHODE QUI TE MANQUAIT :
-    public Location getLocation() {
-        return entity.getLocation();
-    }
+    
+    public Location getLocation() { return npc.getStoredLocation(); }
+    public OperatorDefinition getDefinition() { return definition; }
 }

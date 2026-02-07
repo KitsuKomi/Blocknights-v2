@@ -1,32 +1,67 @@
 package com.blocknights.game.operator;
 
+import com.blocknights.data.DamageType;
 import org.bukkit.entity.EntityType;
 
 public class OperatorDefinition {
     
-    private final String id;
-    private final String name;
-    private final EntityType entityType;
+    private final String id;           // ex: "sniper"
+    private final String name;         // ex: "Sniper d'Élite"
+    private final EntityType entityType; // Le skin (Squelette, Golem...)
+    
+    // Économie
     private final double cost;
-    private final double range;
-    private final double damage;
-    private final int attackSpeed; // Ticks
+    private final int redeployTime;
 
-    public OperatorDefinition(String id, String name, EntityType type, double cost, double range, double dmg, int speed) {
+    // Stats de Combat
+    private final double maxHealth;
+    private final double atk;
+    private final double def;
+    private final int blockCount;      // Combien d'ennemis il arrête
+    
+    // Attaque
+    private final double range;        // Rayon d'action
+    private final int attackSpeed;     // Vitesse en ticks (20 = 1s)
+    private final DamageType damageType;
+
+    private final String skinName;    // Nom du joueur (ex: "Notch")
+    private final String skinTexture; // Texture Base64 (Optionnel, pour skin fixe)
+    private final String skinSignature;
+
+    public OperatorDefinition(String id, String name, EntityType type, double cost, int redeploy,
+                              double hp, double atk, double def, int block,
+                              double range, int speed, DamageType dtype, String skinName, String skinTexture, String skinSignature) {
         this.id = id;
         this.name = name;
         this.entityType = type;
         this.cost = cost;
+        this.redeployTime = redeploy;
+        this.maxHealth = hp;
+        this.atk = atk;
+        this.def = def;
+        this.blockCount = block;
         this.range = range;
-        this.damage = dmg;
         this.attackSpeed = speed;
+        this.damageType = dtype;
+        this.skinName = skinName;
+        this.skinTexture = skinTexture;
+        this.skinSignature = skinSignature;
     }
 
+    // Getters
     public String getId() { return id; }
     public String getName() { return name; }
     public EntityType getEntityType() { return entityType; }
     public double getCost() { return cost; }
+    public int getRedeployTime() { return redeployTime; }
+    public double getMaxHealth() { return maxHealth; }
+    public double getAtk() { return atk; }
+    public double getDef() { return def; }
+    public int getBlockCount() { return blockCount; }
     public double getRange() { return range; }
-    public double getDamage() { return damage; }
     public int getAttackSpeed() { return attackSpeed; }
+    public DamageType getDamageType() { return damageType; }
+    public String getSkinName() { return skinName; }
+    public String getSkinTexture() { return skinTexture; }
+    public String getSkinSignature() { return skinSignature; }
 }
