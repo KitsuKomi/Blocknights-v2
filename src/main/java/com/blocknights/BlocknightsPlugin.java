@@ -1,59 +1,85 @@
 package com.blocknights;
 
+import com.blocknights.commands.BnCommands;
+import com.blocknights.editor.EditorManager;
+import com.blocknights.editor.WandListener;
+import com.blocknights.game.SessionManager;
+import com.blocknights.game.operator.DeploymentListener;
+import com.blocknights.game.operator.OperatorManager;
+import com.blocknights.gui.GuiManager;
+import com.blocknights.maps.MapManager;
+import com.blocknights.utils.LangManager;
+import com.blocknights.waves.WaveManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.blocknights.game.SessionManager;
-import com.blocknights.game.operator.OperatorManager;
-import com.blocknights.maps.MapManager;
-import com.blocknights.waves.WaveManager;
-import com.blocknights.commands.BnCommands;
-import com.blocknights.editor.WandListener;
 public class BlocknightsPlugin extends JavaPlugin {
 
-    private static BlocknightsPlugin instance;
+    // --- Utilitaires ---
+    private LangManager langManager;
+    private GuiManager guiManager;
 
-    private SessionManager sessionManager;
+    // --- Core Data ---
     private MapManager mapManager;
+    
+    // --- Gameplay ---
     private WaveManager waveManager;
+    private SessionManager sessionManager;
     private OperatorManager operatorManager;
-    private com.blocknights.editor.EditorManager editorManager;
-    private com.blocknights.gui.GuiManager guiManager;
-    private com.blocknights.utils.LangManager langManager;
+
+    // --- Editor ---
+    private EditorManager editorManager;
 
     @Override
     public void onEnable() {
-        instance = this;
-        getLogger().info("--- Initialisation de Blocknights V2 (Core) ---");
+        // 1. Charger la Langue en premier (pour que les autres puissent l'utiliser)
+        this.langManager = new LangManager(this);
 
+        // 2. Initialiser les Managers de Données & Jeu
         this.mapManager = new MapManager(this);
-        this.operatorManager = new OperatorManager(this);
         this.waveManager = new WaveManager(this);
-        this.editorManager = new com.blocknights.editor.EditorManager(this);
         this.sessionManager = new SessionManager(this);
-        this.guiManager = new com.blocknights.gui.GuiManager(this);
-        this.langManager = new com.blocknights.utils.LangManager(this);
+        this.operatorManager = new OperatorManager(this); // Fixe l'erreur rouge précédente
 
-        // Enregistrement avec le bon import
+        // 3. Initialiser l'Interface & Éditeur
+        this.guiManager = new GuiManager(this);
+        this.editorManager = new EditorManager(this);
+
+        // 4. Enregistrer les Commandes
+        if (getCommand("bn") != null) {
+            getCommand("bn").setExecutor(new BnCommands(this));
+        }
+
+        // 5. Enregistrer les Listeners (Événements)
+        // Gestion de la baguette d'édition
         getServer().getPluginManager().registerEvents(new WandListener(this), this);
-        
-        getCommand("bn").setExecutor(new BnCommands(this));
+        // Gestion du déploiement des opérateurs (Clic droit avec item)
+        getServer().getPluginManager().registerEvents(new DeploymentListener(this), this);
 
-        getLogger().info("Blocknights V2 est prêt !");
+        getLogger().info("Blocknights V2 (Architecture Arknights) chargé avec succès !");
     }
 
     @Override
     public void onDisable() {
+        // Nettoyage propre
         if (sessionManager != null) {
             sessionManager.stopGame();
         }
+        if (mapManager != null) {
+            mapManager.saveActiveMap();
+        }
+        getLogger().info("Blocknights désactivé.");
     }
 
-    public static BlocknightsPlugin get() { return instance; }
+    // --- GETTERS (Accessibles partout) ---
 
-    public SessionManager getSessionManager() { return sessionManager; }
+    public LangManager getLang() { return langManager; }
+    public GuiManager getGuiManager() { return guiManager; }
+    
     public MapManager getMapManager() { return mapManager; }
+    
     public WaveManager getWaveManager() { return waveManager; }
+    public SessionManager getSessionManager() { return sessionManager; }
     public OperatorManager getOperatorManager() { return operatorManager; }
-    public com.blocknights.editor.EditorManager getEditorManager() { return editorManager; }
-    public com.blocknights.utils.LangManager getLang() { return langManager; }
+    
+    public EditorManager getEditorManager() { return editorManager; }
 }

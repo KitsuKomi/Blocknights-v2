@@ -87,6 +87,14 @@ public class BnCommands implements CommandExecutor {
                 // On pourrait aussi recharger les configs de maps/waves ici
                 p.sendMessage(Component.text("§aConfiguration rechargée !"));
                 break;
+            case "menu":
+            case "deploy":
+                if (!plugin.getSessionManager().isRunning()) {
+                    p.sendMessage("§cLa partie n'est pas lancée.");
+                    return true;
+                }
+                new com.blocknights.game.operator.DeploymentGui(plugin, p).open(p);
+                break;
             case "map":
                 if (args.length < 2) {
                     p.sendMessage(Component.text("Usage: /bn map <create/load> <nom>", NamedTextColor.RED));
