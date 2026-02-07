@@ -54,7 +54,8 @@ public class BlocknightsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new WandListener(this), this);
         // Gestion du déploiement des opérateurs (Clic droit avec item)
         getServer().getPluginManager().registerEvents(new DeploymentListener(this), this);
-
+        getServer().getPluginManager().registerEvents(new com.blocknights.game.operator.InteractionListener(this), this);
+        
         getLogger().info("Blocknights V2 (Architecture Arknights) chargé avec succès !");
     }
 
@@ -66,6 +67,9 @@ public class BlocknightsPlugin extends JavaPlugin {
         }
         if (mapManager != null) {
             mapManager.saveActiveMap();
+        }
+        if (editorManager != null) {
+            editorManager.shutdown();
         }
         getLogger().info("Blocknights désactivé.");
     }

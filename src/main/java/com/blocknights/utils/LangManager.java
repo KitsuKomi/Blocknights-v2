@@ -59,8 +59,8 @@ public class LangManager {
         return format(prefix + msg);
     }
     
-    // Récupère la string brute (sans prefix) pour les placeholders
-    private String getRaw(String key) {
+    // Change "private" en "public" ici
+    public String getRaw(String key) {
         return messages.getOrDefault(key, "&cMessage introuvable: " + key);
     }
 

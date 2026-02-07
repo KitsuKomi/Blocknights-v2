@@ -17,6 +17,7 @@ op-placed: "&aOpérateur {name} déployé !"
 op-no-money: "&cPas assez de LMD ! Manque &e{amount} ⛃"
 op-limit: "&cNombre max d'opérateurs atteint."
 op-unknown: "&cOpérateur inconnu : {id}"
+op-retreat: "&e{name} s'est retiré. &a+{amount} ⛃ remboursés."
 
 # Éditeur
 editor-mode-spots: "&eMode: PLACEMENT DES TUILES (Spots) &7(Clic G: Ajouter, Clic D: Retirer)"
@@ -31,3 +32,52 @@ op-spot-taken: "&cEmplacement déjà occupé par un opérateur."
 
 # Erreurs Générales
 game-not-running: "&cLa partie n'est pas lancée."
+
+# GUI Paramètres Map
+gui-map-settings-title: "Paramètres de la Map"
+gui-map-name: "&eNom: {name}"
+gui-map-id: "&7ID: {id}"
+gui-map-rename-hint: "&eClic pour renommer (Chat)"
+
+gui-map-lives: "&cVies Initiales: {lives}"
+gui-map-lives-lore: "&7Vies du Nexus"
+
+gui-map-money: "&6LMD Initial: {money}"
+gui-map-money-lore: "&7Argent de départ"
+
+gui-map-save: "&aSauvegarder les réglages"
+gui-map-saved: "&aParamètres de la map sauvegardés !"
+
+# GUI Info Opérateur
+gui-op-stats-name: "&b{name}"
+gui-op-stats-cost: "&7Coût: &f{cost}"
+gui-op-stats-hp: "&cPV: {current}/{max} ❤"
+gui-op-stats-atk: "&eAtk: {atk} ⚔"
+gui-op-stats-def: "&9Def: {def} 🛡"
+gui-op-stats-block: "&aBlock: {current}/{max}"
+
+gui-op-retreat-title: "&c⚠ RETRAITE"
+gui-op-retreat-lore1: "&7Retirer cet opérateur."
+gui-op-retreat-refund: "&7Remboursement: &e{amount} ⛃"
+gui-op-retreat-confirm: "&eClic pour confirmer"
+# Contrôles GUI (Réutilisable)
+gui-ctrl-int: "&eClic G: +1 | Clic D: -1"
+gui-ctrl-int-shift: "&6Shift: +/- 5"
+gui-ctrl-double: "&eClic G: +10 | Clic D: -10"
+gui-ctrl-double-shift: "&6Shift: +/- 100"
+
+# Renommage (Chat)
+editor-rename-start: "&eÉcrivez le nouveau nom dans le chat. &7('cancel' pour annuler)"
+editor-rename-cancel: "&cRenommage annulé."
+editor-rename-success: "&aNom changé en : {name}"
+
+# GUI Éditeur de Vagues
+gui-wave-title: "Éditeur de Vagues"
+gui-wave-item-name: "&eVague #{id}"
+gui-wave-item-infos: "&7Groupes: {count} | Délai: {time}s"
+gui-wave-action-edit: "&aClic G: Éditer"
+gui-wave-action-delete: "&cClic D: Supprimer"
+gui-wave-add: "&a+ Nouvelle Vague"
+gui-wave-empty-error: "&cErreur: Cette vague est vide !"
+
+gui-common-close: "&cFermer"

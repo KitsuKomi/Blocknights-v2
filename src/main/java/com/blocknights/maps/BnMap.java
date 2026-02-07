@@ -10,7 +10,9 @@ import java.util.Set;
 public class BnMap {
     private final String id;
     private String displayName;
-    
+    private int initialLives = 20;      // Vies du Nexus
+    private double initialMoney = 1000; // LMD de départ
+
     // Données de chemin (Lanes)
     private final List<List<Location>> lanes = new ArrayList<>();
     
@@ -81,4 +83,9 @@ public class BnMap {
         if (laneIndex < lanes.size()) return lanes.get(laneIndex);
         return new ArrayList<>();
     }
+    public int getInitialLives() { return initialLives; }
+    public void setInitialLives(int lives) { this.initialLives = lives; }
+
+    public double getInitialMoney() { return initialMoney; }
+    public void setInitialMoney(double money) { this.initialMoney = money; }
 }

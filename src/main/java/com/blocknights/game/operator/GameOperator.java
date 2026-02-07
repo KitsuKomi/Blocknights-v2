@@ -95,11 +95,26 @@ public class GameOperator {
     }
     
     public void remove() {
-        // IMPORTANT : Détruire le NPC proprement
-        npc.destroy();
+        if (npc.isSpawned()) {
+            npc.destroy();
+        }
         blockedEnemies.clear();
     }
     
-    public Location getLocation() { return npc.getStoredLocation(); }
-    public OperatorDefinition getDefinition() { return definition; }
+    public Location getLocation() { 
+        return npc.getStoredLocation(); 
+    }
+    
+    public OperatorDefinition getDefinition() { 
+        return definition; 
+    }
+
+    public NPC getNPC() {
+        return npc;
+    }
+
+    // Retourne l'entité Bukkit réelle (le zombie/joueur physique)
+    public LivingEntity getEntity() {
+        return (LivingEntity) npc.getEntity();
+    }
 }
