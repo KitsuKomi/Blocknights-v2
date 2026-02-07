@@ -67,9 +67,9 @@ public class BnCommands implements CommandExecutor {
                 break;
                 
             case "op":
-                plugin.getOperatorManager().placeOperator(p);
+                // Raccourci vers le GUI
+                new com.blocknights.game.operator.DeploymentGui(plugin, p).open(p);
                 break;
-                // Dans BnCommands.java
             case "waves":
                 BnMap map = plugin.getMapManager().getActiveMap();
                 if (map == null) {

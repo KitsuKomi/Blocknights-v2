@@ -1,58 +1,111 @@
 package com.blocknights.game.operator;
 
 import com.blocknights.BlocknightsPlugin;
+import com.blocknights.game.GamePlayer;
+import com.blocknights.maps.BnMap;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class OperatorManager {
 
     private final BlocknightsPlugin plugin;
-    private final List<Location> towers = new ArrayList<>();
+    private final Map<String, OperatorDefinition> catalog = new HashMap<>();
+    private final List<GameOperator> activeOperators = new ArrayList<>();
 
     public OperatorManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
+        initCatalog();
+        startCombatLoop();
     }
 
-    public void placeOperator(Player p) {
-        Location loc = p.getLocation().getBlock().getLocation().add(0.5, 0, 0.5);
-        loc.getBlock().setType(Material.EMERALD_BLOCK); // Visuel temporaire
-        towers.add(loc);
-        p.sendMessage("§aOpérateur placé !");
+    private void initCatalog() {
+        // Tu peux ajouter d'autres opérateurs ici
+        catalog.put("sniper", new OperatorDefinition("sniper", "Sniper", EntityType.SKELETON, 100.0, 7.0, 5.0, 20));
+        catalog.put("caster", new OperatorDefinition("caster", "Caster", EntityType.WITCH, 250.0, 5.0, 12.0, 40));
     }
 
-    public void tick() {
-        for (Location tower : towers) {
-            // Tirer toutes les secondes environ (1 chance sur 20 ticks)
-            if (Math.random() > 0.05) continue;
-
-            LivingEntity target = findTarget(tower);
-            if (target != null) {
-                // Effet de tir
-                tower.getWorld().spawnParticle(Particle.COMPOSTER, target.getEyeLocation(), 10);
-                tower.getWorld().playSound(tower, Sound.ENTITY_BLAZE_HURT, 0.5f, 2f);
-                target.damage(5);
-            }
+    public boolean placeOperator(Player p, String opId, Location loc) {
+        if (!plugin.getSessionManager().isRunning()) {
+            p.sendMessage(Component.text("Partie non lancée !", NamedTextColor.RED));
+            return false;
         }
-    }
 
-    private LivingEntity findTarget(Location tower) {
-        double minDst = 8.0;
-        LivingEntity best = null;
+        OperatorDefinition def = catalog.get(opId);
+        if (def == null) return false;
+
+        GamePlayer gp = plugin.getSessionManager().getGamePlayer(p);
         
-        for (LivingEntity enemy : plugin.getWaveManager().getEnemies()) {
-            double dst = enemy.getLocation().distance(tower);
-            if (dst < minDst) {
-                minDst = dst;
-                best = enemy;
+        // Check Argent
+        if (gp.getMoney() < def.getCost()) {
+            // Utilise ton système de Langue ici si tu veux
+            p.sendMessage(Component.text("Pas assez d'argent !", NamedTextColor.RED));
+            return false;
+        }
+
+        BnMap map = plugin.getMapManager().getActiveMap();
+        
+        // Check Zone Valide
+        if (!map.isBuildable(loc)) {
+            p.sendMessage(Component.text("Zone invalide !", NamedTextColor.RED));
+            p.playSound(loc, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
+            return false;
+        }
+
+        // Check Occupation (Nécessite GameOperator.getLocation())
+        for (GameOperator op : activeOperators) {
+            if (op.getLocation().getBlock().equals(loc.getBlock())) {
+                p.sendMessage(Component.text("Déjà occupé !", NamedTextColor.RED));
+                return false;
             }
         }
-        return best;
+
+        // Déploiement
+        gp.removeMoney(def.getCost());
+
+        Location spawnLoc = loc.getBlock().getLocation().add(0.5, 0, 0.5);
+        Location mapSpawn = plugin.getMapManager().getSpawnPoint();
+        if (mapSpawn != null) {
+            spawnLoc.setDirection(mapSpawn.toVector().subtract(spawnLoc.toVector()));
+        }
+
+        LivingEntity entity = (LivingEntity) loc.getWorld().spawnEntity(spawnLoc, def.getEntityType());
+        
+        GameOperator op = new GameOperator(def, entity);
+        activeOperators.add(op);
+        
+        p.sendMessage(Component.text("Opérateur déployé !", NamedTextColor.GREEN));
+        return true;
+    }
+
+    private void startCombatLoop() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!plugin.getSessionManager().isRunning()) return;
+                
+                List<GameOperator> safeList = new ArrayList<>(activeOperators);
+                for (GameOperator op : safeList) {
+                    op.tick(plugin);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
+    }
+
+    public void clearAll() {
+        for (GameOperator op : activeOperators) {
+            op.remove();
+        }
+        activeOperators.clear();
     }
 }
