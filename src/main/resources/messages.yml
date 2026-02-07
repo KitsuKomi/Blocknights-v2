@@ -12,6 +12,12 @@ game-over: "&c&lMISSION FAILED. &7Le Nexus est détruit."
 wave-start: "&6--- VAGUE {wave} ---"
 nexus-damage: "&c⚠ Le Nexus a pris des dégâts ! Vies restantes: {lives}"
 
+# Jeu (Wave / Victoire)
+game-wave-start: "&c⚠ Vague {id} commence !"
+game-victory-chat: "&6&lVICTOIRE ! &eTous les ennemis sont vaincus !"
+game-victory-title: "&6VICTOIRE"
+game-victory-subtitle: "&eLa défense a tenu bon !"
+
 # Opérateurs
 op-placed: "&aOpérateur {name} déployé !"
 op-no-money: "&cPas assez de LMD ! Manque &e{amount} ⛃"
@@ -81,3 +87,16 @@ gui-wave-add: "&a+ Nouvelle Vague"
 gui-wave-empty-error: "&cErreur: Cette vague est vide !"
 
 gui-common-close: "&cFermer"
+
+# GUI Éditeur de Groupe
+gui-group-title: "Éditer le Groupe"
+gui-group-type: "&eType: {type}"
+gui-group-count: "&cQuantité: {count}"
+gui-group-interval: "&bIntervalle: {time}s"
+gui-group-hp: "&aPV: {hp} ❤"
+gui-group-speed: "&fVitesse: {speed}"
+gui-group-return: "&aSauvegarder et Retour"
+
+gui-hint-cycle: "&7Clic pour changer"
+gui-hint-maths: "&eClic G: +{small} | Clic D: -{small}"
+gui-hint-maths-shift: "&6Shift: +/- {big}"

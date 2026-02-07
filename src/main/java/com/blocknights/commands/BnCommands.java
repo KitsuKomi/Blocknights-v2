@@ -2,7 +2,7 @@ package com.blocknights.commands;
 
 import com.blocknights.BlocknightsPlugin;
 import com.blocknights.maps.BnMap;
-
+import com.blocknights.gui.WaveEditorGui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;

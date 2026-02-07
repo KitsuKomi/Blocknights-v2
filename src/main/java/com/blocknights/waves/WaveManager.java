@@ -6,12 +6,11 @@ import com.blocknights.data.WaveGroup;
 import com.blocknights.maps.BnMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
-import com.blocknights.game.operator.GameOperator;
 
 import java.util.*;
 
@@ -19,133 +18,103 @@ public class WaveManager {
 
     private final BlocknightsPlugin plugin;
     
-    // État du jeu
-    private int currentWaveIndex = 0; // 1 = Vague 1
-    private boolean waveActive = false;
-    
-    // Gestion des monstres
     private final List<LivingEntity> activeEnemies = new ArrayList<>();
-    // Map pour savoir quel ennemi va vers quel point (Index)
     private final Map<UUID, Integer> enemyPathIndex = new HashMap<>();
-    // Map pour savoir sur quelle ligne est l'ennemi (Lane)
-    private final Map<UUID, Integer> enemyLaneIndex = new HashMap<>(); 
-    
-    // Gestion du Spawning précis
-    private Queue<WaveGroup> groupsQueue = new LinkedList<>();
-    private WaveGroup currentGroup;
-    private int mobsSpawnedInGroup = 0;
-    private long lastSpawnTime = 0;
+    private final Map<UUID, Integer> enemyLaneIndex = new HashMap<>();
+
+    private int currentWaveIndex = 0;
 
     public WaveManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
+        startMoveLoop();
     }
 
-    public void startWave() {
+    public void startNextWave() {
         BnMap map = plugin.getMapManager().getActiveMap();
-        if (map == null || map.getWaves().isEmpty()) {
-            Bukkit.broadcast(Component.text("Pas de vagues configurées sur cette map !", NamedTextColor.RED));
+        if (map == null) return;
+
+        List<WaveDefinition> waves = map.getWaves();
+        
+        // Condition de Victoire
+        if (currentWaveIndex >= waves.size()) {
+            plugin.getSessionManager().victory(); // L'erreur disparaîtra grâce à l'étape 3
             return;
         }
 
+        WaveDefinition wave = waves.get(currentWaveIndex);
+        
+        // CORRECTION I18N : Plus de texte en dur
+        plugin.getLang().broadcast("game-wave-start", "{id}", String.valueOf(wave.getId()));
+        
+        startWaveLogic(wave);
         currentWaveIndex++;
-        
-        // Vérifier si on a fini toutes les vagues
-        if (currentWaveIndex > map.getWaves().size()) {
-            Bukkit.broadcast(Component.text("--- VICTOIRE ! Mission Accomplie ---", NamedTextColor.GOLD));
-            plugin.getSessionManager().stopGame();
-            return;
-        }
-        
-        // Récupérer la définition de la vague depuis la Map
-        // (Les index de liste commencent à 0, donc vague 1 = index 0)
-        WaveDefinition wave = map.getWaves().get(currentWaveIndex - 1);
-        
-        plugin.getLang().send(Bukkit.getConsoleSender(), "wave-start", "{wave}", String.valueOf(currentWaveIndex));
-        Bukkit.broadcast(Component.text("--- VAGUE " + currentWaveIndex + " ---", NamedTextColor.RED));
-        
-        this.groupsQueue = new LinkedList<>(wave.getGroups());
-        this.currentGroup = groupsQueue.poll();
-        this.mobsSpawnedInGroup = 0;
-        this.waveActive = true;
     }
 
-    public void tick() {
-        if (!plugin.getSessionManager().isRunning()) return;
+    private void startWaveLogic(WaveDefinition wave) {
+        long currentDelayTicks = 0;
 
-        // 1. Logique de Spawning
-        if (waveActive && currentGroup != null) {
-            long now = System.currentTimeMillis();
-            long intervalMs = currentGroup.getInterval() * 50L; 
+        for (WaveGroup group : wave.getGroups()) {
+            long intervalTicks = (long) (group.getInterval() * 20L);
 
-            if (now - lastSpawnTime >= intervalMs) {
-                spawnEnemy(currentGroup);
-                lastSpawnTime = now;
-                mobsSpawnedInGroup++;
-                
-                if (mobsSpawnedInGroup >= currentGroup.getCount()) {
-                    if (groupsQueue.isEmpty()) {
-                        currentGroup = null; // Vague finie de spawner
-                    } else {
-                        currentGroup = groupsQueue.poll();
-                        mobsSpawnedInGroup = 0;
+            for (int i = 0; i < group.getCount(); i++) {
+                long spawnTime = currentDelayTicks + (i * intervalTicks);
+
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (!plugin.getSessionManager().isRunning()) {
+                            this.cancel();
+                            return;
+                        }
+                        spawnEnemy(group);
                     }
-                }
+                }.runTaskLater(plugin, spawnTime);
             }
-        } else if (waveActive && activeEnemies.isEmpty() && currentGroup == null) {
-            // Vague terminée (Plus rien à spawn ET plus rien en vie)
-            waveActive = false;
-            
-            // Récupérer le délai avant la prochaine
-            BnMap map = plugin.getMapManager().getActiveMap();
-            int delay = 5;
-            if (map != null && currentWaveIndex <= map.getWaves().size()) {
-                delay = map.getWaves().get(currentWaveIndex - 1).getDelayBeforeNext();
-            }
-            
-            Bukkit.broadcast(Component.text("Vague terminée ! Prochaine dans " + delay + "s...", NamedTextColor.GREEN));
-            Bukkit.getScheduler().runTaskLater(plugin, this::startWave, delay * 20L);
+            currentDelayTicks += (long) (group.getCount() * intervalTicks);
+            currentDelayTicks += 60L; 
         }
-
-        // 2. Logique de Mouvement
-        moveEnemies();
     }
 
     private void spawnEnemy(WaveGroup group) {
-        int lane = group.getLaneIndex();
-        
-        var map = plugin.getMapManager().getActiveMap();
+        BnMap map = plugin.getMapManager().getActiveMap();
         if (map == null) return;
-        List<Location> path = map.getPath(lane);
+        
+        List<Location> path = map.getPath(group.getLaneIndex());
         if (path.isEmpty()) return;
 
         Location spawnLoc = path.get(0);
         LivingEntity enemy = (LivingEntity) spawnLoc.getWorld().spawnEntity(spawnLoc, group.getMobType());
         
-        // Configuration Stats
-        enemy.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(group.getHealth());
+        var maxHp = enemy.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (maxHp != null) maxHp.setBaseValue(group.getHealth());
         enemy.setHealth(group.getHealth());
-        enemy.setAI(false); 
-        enemy.setGravity(false);
-        enemy.customName(Component.text("PV: " + (int)group.getHealth(), NamedTextColor.RED));
-        enemy.setCustomNameVisible(true);
 
-        // Stockage Vitesse dans le modifier de vitesse vanilla (détourné)
-        // 0.25 est la vitesse standard d'un zombie
-        enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).setBaseValue(group.getSpeed());
+        var speed = enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (speed != null) speed.setBaseValue(group.getSpeed());
 
         activeEnemies.add(enemy);
-        enemyPathIndex.put(enemy.getUniqueId(), 1); // Vise le point 1
-        enemyLaneIndex.put(enemy.getUniqueId(), lane);
+        enemyPathIndex.put(enemy.getUniqueId(), 0);
+        enemyLaneIndex.put(enemy.getUniqueId(), group.getLaneIndex());
+    }
+
+    private void startMoveLoop() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!plugin.getSessionManager().isRunning()) return;
+                moveEnemies();
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
     }
 
     private void moveEnemies() {
         Iterator<LivingEntity> it = activeEnemies.iterator();
-        var map = plugin.getMapManager().getActiveMap();
+        BnMap map = plugin.getMapManager().getActiveMap();
+        if (map == null) return;
         
-        // On récupère la liste des opérateurs pour tester les collisions
-        // (Assure-toi d'avoir ajouté le getter getActiveOperators() dans OperatorManager !)
-        List<GameOperator> operators = plugin.getOperatorManager().getActiveOperators();
-        
+        // CORRECTION : On s'assure que getOperatorManager existe
+        var operators = plugin.getOperatorManager().getActiveOperators();
+
         while (it.hasNext()) {
             LivingEntity enemy = it.next();
             
@@ -155,105 +124,76 @@ public class WaveManager {
                 it.remove();
                 continue;
             }
-            
-            // --- LOGIQUE DE BLOCAGE ---
+
+            // -- BLOCAGE --
             boolean isBlocked = false;
-            
-            for (GameOperator op : operators) {
-                // Si l'opérateur est un "Bloqueur" (blockCount > 0)
-                // ET qu'il est tout près de l'ennemi (< 0.8 bloc)
-                if (op.getLocation().distance(enemy.getLocation()) < 0.8) {
-                    
-                    // Cas 1: L'ennemi est DÉJÀ bloqué par lui -> Il reste bloqué
-                    if (op.getBlockedEnemies().contains(enemy)) {
-                        isBlocked = true;
-                        break;
-                    }
-                    
-                    // Cas 2: L'ennemi ARRIVE et l'opérateur a de la place -> On le bloque
-                    if (op.canBlock()) {
-                        op.addBlockedEnemy(enemy);
-                        isBlocked = true;
-                        break;
-                    }
-                    
-                    // Cas 3: L'opérateur est plein -> L'ennemi passe à travers (Arknights logic)
+            for (var op : operators) {
+                if (op.getLocation().distanceSquared(enemy.getLocation()) < 1.0) {
+                     if (op.getBlockedEnemies().contains(enemy) || op.canBlock()) {
+                         if (!op.getBlockedEnemies().contains(enemy)) op.addBlockedEnemy(enemy);
+                         isBlocked = true;
+                         break;
+                     }
                 }
             }
-
             if (isBlocked) {
-                // STOP ! On n'avance pas sur le chemin.
-                enemy.setVelocity(new Vector(0, 0, 0));
-                // (Plus tard, on ajoutera ici: enemy.attack(operator))
-                continue; 
+                enemy.setVelocity(new Vector(0,0,0));
+                continue;
             }
-            // ---------------------------
 
-            enemy.customName(Component.text("PV: " + (int)enemy.getHealth(), NamedTextColor.RED));
-
-            int lane = enemyLaneIndex.get(enemy.getUniqueId());
+            // -- MOUVEMENT --
+            int lane = enemyLaneIndex.getOrDefault(enemy.getUniqueId(), 0);
             List<Location> path = map.getPath(lane);
-            int targetIndex = enemyPathIndex.get(enemy.getUniqueId());
+            int targetIndex = enemyPathIndex.getOrDefault(enemy.getUniqueId(), 0);
 
             if (targetIndex >= path.size()) {
                 plugin.getSessionManager().damageNexus(1);
-                removeEnemy(enemy, it);
+                enemy.remove();
+                enemyPathIndex.remove(enemy.getUniqueId());
+                enemyLaneIndex.remove(enemy.getUniqueId());
+                it.remove();
                 continue;
             }
 
             Location target = path.get(targetIndex);
             Location current = enemy.getLocation();
-            double speed = enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).getBaseValue();
+            double speed = enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).getValue();
 
-            if (current.distance(target) < speed) {
+            if (current.distance(target) < speed + 0.5) {
                 enemyPathIndex.put(enemy.getUniqueId(), targetIndex + 1);
             } else {
                 Vector dir = target.toVector().subtract(current.toVector()).normalize().multiply(speed);
+                
+                // CORRECTION ERREUR "getVelocity undefined" :
+                // On récupère la vélocité de l'ENNEMI, pas de la Location (current)
+                if (Math.abs(target.getY() - current.getY()) < 0.1) {
+                    dir.setY(enemy.getVelocity().getY()); 
+                }
+                
+                enemy.setVelocity(dir);
                 Location look = current.clone().setDirection(dir);
                 enemy.setRotation(look.getYaw(), look.getPitch());
-                enemy.setVelocity(dir);
             }
         }
     }
+    // --- MÉTHODES MANQUANTES POUR LE SCOREBOARD & SESSION ---
     
-    private void removeEnemy(LivingEntity enemy, Iterator<LivingEntity> it) {
-        enemy.remove();
-        enemyPathIndex.remove(enemy.getUniqueId());
-        enemyLaneIndex.remove(enemy.getUniqueId());
-        it.remove();
-    }
-    
-    // Appelé quand un monstre meurt (récompense)
-    public void onEnemyKilled(LivingEntity enemy) {
-        plugin.getSessionManager().rewardPlayer(null, 10.0);
-        enemy.getWorld().spawnParticle(org.bukkit.Particle.WAX_ON, enemy.getLocation().add(0, 1, 0), 5);
-    }
-
-    public void clearAll() {
+    public void clearAll() { // Renommé de cleanup -> clearAll
         for (LivingEntity e : activeEnemies) e.remove();
         activeEnemies.clear();
         enemyPathIndex.clear();
         enemyLaneIndex.clear();
         currentWaveIndex = 0;
-        waveActive = false;
-        currentGroup = null;
-        groupsQueue.clear();
     }
     
-    // --- Getters pour le Scoreboard (C'est ça qui te manquait) ---
-
-    public List<LivingEntity> getEnemies() { return activeEnemies; }
+    public int getCurrentWave() { return currentWaveIndex; }
     
-    public int getEnemiesCount() {
-        return activeEnemies.size();
-    }
-
-    public int getCurrentWave() {
-        return currentWaveIndex;
-    }
-
     public int getTotalWaves() {
         BnMap map = plugin.getMapManager().getActiveMap();
-        return map != null ? map.getWaves().size() : 0;
+        return (map != null) ? map.getWaves().size() : 0;
     }
+    
+    public int getEnemiesCount() { return activeEnemies.size(); }
+    
+    public List<LivingEntity> getEnemies() { return activeEnemies; }
 }

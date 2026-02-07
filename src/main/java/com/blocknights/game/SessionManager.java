@@ -46,10 +46,27 @@ public class SessionManager {
             p.sendMessage(Component.text("=== MISSION START ===", NamedTextColor.GOLD));
             p.playSound(p.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1f, 1f);
         }
-
-        plugin.getWaveManager().startWave();
+        plugin.getWaveManager().startNextWave();
     }
+    
+    public void victory() {
+        if (!isRunning) return;
+        
+        // 1. Message Chat (Via LangManager)
+        plugin.getLang().broadcast("game-victory-chat");
+        
+        // 2. Titre & Son pour tous les joueurs
+        for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+            p.playSound(p.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+            
+            // On récupère le texte brut pour le Title
+            String title = plugin.getLang().getRaw("game-victory-title").replace("&", "§");
+            String sub = plugin.getLang().getRaw("game-victory-subtitle").replace("&", "§");
+            p.sendTitle(title, sub, 10, 70, 20);
+        }
 
+        stopGame(); // On arrête tout proprement
+    }
     public void stopGame() {
         if (!isRunning) return;
         isRunning = false;
