@@ -71,7 +71,20 @@ public class CombatListener implements Listener {
                 return; 
             }
         }
-        
+        e.setDamage(finalDamage); // Dégât vanilla (souvent 0 si tu gères tout toi-même, mais gardons le pour l'instant)
+    
+    // --- MISE À JOUR BARRE DE VIE ENNEMIE ---
+        if (victim.hasMetadata("bn_def")) { // C'est un ennemi à nous
+            // On récupère ses PV actuels (Attention : Bukkit gère les PV vanilla, 
+            // si tu utilises des PV > 2048, il faut stocker les PV actuels dans une Metadata aussi !)
+            
+            // Pour simplifier ici, supposons que tu utilises les PV Vanilla scalés (Attribute Modifier)
+            double current = victim.getHealth() - finalDamage;
+            double max = victim.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
+            
+            // On appelle la méthode de mise à jour (faut la rendre accessible ou la copier ici)
+            plugin.getWaveManager().updateEnemyHealthBar(victim, Math.max(0, current), max);
+        }
         if (e.getDamager().hasMetadata("bn_aoe_radius")) {
         double radius = e.getDamager().getMetadata("bn_aoe_radius").get(0).asDouble();
         double centerDamage = e.getFinalDamage(); // Dégâts initiaux calculés

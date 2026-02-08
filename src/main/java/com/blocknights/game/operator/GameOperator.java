@@ -74,6 +74,7 @@ public class GameOperator {
             healNearbyAlly(plugin);
             return; // Un soigneur ne tire pas sur les ennemis (généralement)
         }
+
         // 2. PRIORITÉ : Attaquer ceux qu'on bloque (Corps à corps)
         if (!blockedEnemies.isEmpty()) {
             attackBlockedEnemies();
@@ -92,33 +93,34 @@ public class GameOperator {
     }
 
     private void healNearbyAlly(BlocknightsPlugin plugin) {
-        long now = System.currentTimeMillis();
-        if (now - lastAttackTime < (definition.getAttackSpeed() * 1000)) return;
-
-        // Chercher l'opérateur blessé le plus proche
-        GameOperator targetToHeal = null;
         double rangeSq = definition.getRange() * definition.getRange();
-        
+        GameOperator bestTarget = null;
+        double lowestPercent = 1.0; // On cherche celui qui a le moins de vie %
+
         for (GameOperator op : plugin.getOperatorManager().getActiveOperators()) {
-            if (op == this) continue; // Ne se soigne pas lui-même (ou si ?)
+            if (op == this) continue; // Ne se soigne pas lui-même
             if (op.getLocation().distanceSquared(getLocation()) > rangeSq) continue;
+
+            double current = op.getCurrentHealth();
+            double max = op.getDefinition().getMaxHealth();
             
-            // Est-il blessé ?
-            if (op.getCurrentHealth() < op.getDefinition().getMaxHealth()) {
-                // On pourrait prioriser celui qui a le moins de PV%
-                targetToHeal = op;
-                break; 
+            if (current < max) {
+                double percent = current / max;
+                if (percent < lowestPercent) {
+                    lowestPercent = percent;
+                    bestTarget = op;
+                }
             }
         }
 
-        if (targetToHeal != null) {
-            // Appliquer le soin (ATK devient HEAL)
-            double healAmount = definition.getAtk();
-            targetToHeal.takeHealing(healAmount); // Créer cette méthode qui fait currentHealth += amount
+        if (bestTarget != null) {
+            // Soin !
+            bestTarget.takeHealing(definition.getAtk()); // On utilise la stat ATK comme puissance de soin
+            lastAttackTime = System.currentTimeMillis();
             
-            // Visuel
-            getLocation().getWorld().spawnParticle(org.bukkit.Particle.HEART, targetToHeal.getLocation().add(0, 2, 0), 3);
-            lastAttackTime = now;
+            // Effet visuel
+            getLocation().getWorld().spawnParticle(org.bukkit.Particle.HEART, bestTarget.getLocation().add(0, 2, 0), 3);
+            getLocation().getWorld().playSound(getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 2f);
         }
     }
 
@@ -141,7 +143,7 @@ public class GameOperator {
             living.getWorld().spawnParticle(org.bukkit.Particle.HEART, living.getLocation().add(0, 2, 0), 1);
         }
     }
-    
+
     private LivingEntity findTarget(BlocknightsPlugin plugin) {
         // On récupère la liste de tous les ennemis vivants via le WaveManager
         List<LivingEntity> potentialTargets = plugin.getWaveManager().getEnemies();
@@ -212,6 +214,21 @@ public class GameOperator {
                 dir.normalize(); // Reset
             }
             myLoc.getWorld().playSound(myLoc, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1f, 1.5f);
+            
+        } else if (type.equalsIgnoreCase("FIREBALL")) {
+            org.bukkit.entity.SmallFireball fireball = myLoc.getWorld().spawn(myLoc.add(myLoc.getDirection()), org.bukkit.entity.SmallFireball.class);
+            fireball.setVelocity(targetLoc.toVector().subtract(myLoc.toVector()).normalize().multiply(1.5));
+            
+            // Marquer les dégâts ET le rayon d'explosion
+            fireball.setMetadata("bn_damage", new org.bukkit.metadata.FixedMetadataValue(
+                BlocknightsPlugin.getPlugin(BlocknightsPlugin.class), 
+                definition.getAtk()
+            ));
+            // Rayon de 3 blocs
+            fireball.setMetadata("bn_aoe_radius", new org.bukkit.metadata.FixedMetadataValue(
+                BlocknightsPlugin.getPlugin(BlocknightsPlugin.class), 
+                3.0 
+            ));
         }
         
         // Animation

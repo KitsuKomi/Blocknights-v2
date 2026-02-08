@@ -83,7 +83,8 @@ public class WaveManager {
 
         Location spawnLoc = path.get(0);
         LivingEntity enemy = (LivingEntity) spawnLoc.getWorld().spawnEntity(spawnLoc, group.getMobType());
-        
+
+        updateEnemyHealthBar(enemy, enemyHP, enemyHP);
         var maxHp = enemy.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHp != null) maxHp.setBaseValue(group.getHealth());
         enemy.setHealth(group.getHealth());
@@ -93,7 +94,7 @@ public class WaveManager {
         
         enemy.setMetadata("bn_atk", new org.bukkit.metadata.FixedMetadataValue(plugin, enemyAtk));
         enemy.setMetadata("bn_def", new org.bukkit.metadata.FixedMetadataValue(plugin, enemyDef));
-        
+
         var speed = enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(group.getSpeed());
 
@@ -112,6 +113,18 @@ public class WaveManager {
         }.runTaskTimer(plugin, 0L, 2L);
     }
 
+    public void updateEnemyHealthBar(LivingEntity entity, double current, double max) {
+        int percent = (int) ((current / max) * 100);
+        
+        // Couleur selon les PV (Vert -> Jaune -> Rouge)
+        String color = "§a";
+        if (percent < 50) color = "§e";
+        if (percent < 20) color = "§c";
+
+        entity.setCustomName(color + "HP: " + (int)current + " / " + (int)max);
+        entity.setCustomNameVisible(true);
+    }
+    
     private void moveEnemies() {
         Iterator<LivingEntity> it = activeEnemies.iterator();
         BnMap map = plugin.getMapManager().getActiveMap();
