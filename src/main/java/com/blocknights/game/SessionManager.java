@@ -4,8 +4,10 @@ import com.blocknights.BlocknightsPlugin;
 import com.blocknights.maps.BnMap;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -131,6 +133,21 @@ public class SessionManager {
             }
         }
         stopGame();
+    }
+
+    public void giveGameItems(Player p) {
+        p.getInventory().clear();
+
+        // Slot 0 : L'outil de déploiement
+        ItemStack communicator = new ItemStack(Material.NETHER_STAR);
+        var meta = communicator.getItemMeta();
+        meta.setDisplayName("§6§lRecrutement §7(Clic Droit)");
+        communicator.setItemMeta(meta);
+
+        p.getInventory().setItem(0, communicator);
+        
+        // Slot 8 : Quitter (Optionnel)
+        // ...
     }
     
     public void victory() {
