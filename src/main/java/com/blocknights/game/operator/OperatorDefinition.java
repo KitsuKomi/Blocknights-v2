@@ -23,13 +23,16 @@ public class OperatorDefinition {
     private final int blockCount;      // Combien d'ennemis il arrête
     
     // Attaque
-    private final double range;        // Rayon d'action
     private final int attackSpeed;     // Vitesse en ticks (20 = 1s)
     private final DamageType damageType;
 
     private final String skinName;    // Nom du joueur (ex: "Notch")
     private final String skinTexture; // Texture Base64 (Optionnel, pour skin fixe)
     private final String skinSignature;
+
+    private double range = 1.0; // Portée en blocs (ex: 1.0 pour Tank, 5.0 pour Sniper)
+    private boolean isRanged = false; // true = tire, false = tape au contact
+    private String projectileType = "NONE"; // ARROW, SNOWBALL, FIREBALL, WITHER_SKULL, PARTICLE_BEAM
 
     public OperatorDefinition(String id, String name, EntityType type, double cost, int redeploy,
                               double hp, double atk, double def, int block,
@@ -78,4 +81,9 @@ public class OperatorDefinition {
     public String getSkinName() { return skinName; }
     public String getSkinTexture() { return skinTexture; }
     public String getSkinSignature() { return skinSignature; }
+    public void setRange(double range) { this.range = range; }
+    public boolean isRanged() { return isRanged; }
+    public void setRanged(boolean ranged) { isRanged = ranged; }
+    public String getProjectileType() { return projectileType; }
+    public void setProjectileType(String type) { this.projectileType = type; }
 }

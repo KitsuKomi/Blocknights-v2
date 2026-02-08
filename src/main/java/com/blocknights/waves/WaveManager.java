@@ -3,6 +3,7 @@ package com.blocknights.waves;
 import com.blocknights.BlocknightsPlugin;
 import com.blocknights.data.WaveDefinition;
 import com.blocknights.data.WaveGroup;
+import com.blocknights.game.operator.GameOperator;
 import com.blocknights.maps.BnMap;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
@@ -87,6 +88,12 @@ public class WaveManager {
         if (maxHp != null) maxHp.setBaseValue(group.getHealth());
         enemy.setHealth(group.getHealth());
 
+        double enemyAtk = 10.0 + (currentWaveIndex * 2); // Ex: Vague 1 = 12 dmg, Vague 5 = 20 dmg
+        double enemyDef = 2.0 + currentWaveIndex;        // Ex: Vague 1 = 3 def
+        
+        enemy.setMetadata("bn_atk", new org.bukkit.metadata.FixedMetadataValue(plugin, enemyAtk));
+        enemy.setMetadata("bn_def", new org.bukkit.metadata.FixedMetadataValue(plugin, enemyDef));
+        
         var speed = enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(group.getSpeed());
 
@@ -110,70 +117,113 @@ public class WaveManager {
         BnMap map = plugin.getMapManager().getActiveMap();
         if (map == null) return;
         
-        // CORRECTION : On s'assure que getOperatorManager existe
-        var operators = plugin.getOperatorManager().getActiveOperators();
+        // On récupère la liste des opérateurs vivants
+        List<GameOperator> operators = plugin.getOperatorManager().getActiveOperators();
 
         while (it.hasNext()) {
             LivingEntity enemy = it.next();
             
+            // Nettoyage si mort
             if (enemy.isDead() || !enemy.isValid()) {
-                enemyPathIndex.remove(enemy.getUniqueId());
-                enemyLaneIndex.remove(enemy.getUniqueId());
+                cleanEnemyData(enemy);
                 it.remove();
                 continue;
             }
 
-            // -- BLOCAGE --
+            // --- 1. LOGIQUE DE BLOCAGE (LE CŒUR DU SYSTÈME) ---
             boolean isBlocked = false;
-            for (var op : operators) {
-                if (op.getLocation().distanceSquared(enemy.getLocation()) < 1.0) {
-                     if (op.getBlockedEnemies().contains(enemy) || op.canBlock()) {
-                         if (!op.getBlockedEnemies().contains(enemy)) op.addBlockedEnemy(enemy);
-                         isBlocked = true;
-                         break;
-                     }
+            GameOperator blocker = null;
+
+            // Est-ce que cet ennemi est DÉJÀ bloqué par quelqu'un ?
+            for (GameOperator op : operators) {
+                if (op.getBlockedEnemies().contains(enemy)) {
+                    isBlocked = true;
+                    blocker = op;
+                    break;
                 }
             }
-            if (isBlocked) {
-                enemy.setVelocity(new Vector(0,0,0));
-                continue;
+
+            // Sinon, est-ce qu'il entre dans la zone d'un opérateur ?
+            if (!isBlocked) {
+                for (GameOperator op : operators) {
+                    // Distance de contact (0.8 bloc = très proche)
+                    if (op.getLocation().distanceSquared(enemy.getLocation()) < 0.8) {
+                        if (op.canBlock()) {
+                            op.addBlockedEnemy(enemy);
+                            isBlocked = true;
+                            blocker = op;
+                            break; // Bloqué par le premier trouvé
+                        }
+                    }
+                }
             }
 
-            // -- MOUVEMENT --
+            // SI BLOQUÉ : On arrête le mouvement et on tape l'opérateur
+            if (isBlocked && blocker != null) {
+                // Vélocité 0 pour qu'il reste sur place
+                enemy.setVelocity(new Vector(0, 0, 0));
+                
+                // On oriente l'ennemi vers l'opérateur (visuel)
+                Location lookAt = blocker.getLocation().clone();
+                lookAt.setDirection(lookAt.toVector().subtract(enemy.getLocation().toVector()));
+                enemy.setRotation(lookAt.getYaw(), lookAt.getPitch());
+
+                // L'ennemi tape l'opérateur (tous les 20 ticks / 1 seconde par ex)
+                // Ici on simplifie : petit dégât à chaque tick du loop (attention à l'équilibrage)
+                // Idéalement : stocker lastAttackTime sur l'ennemi aussi.
+                // Pour l'instant : Dégât brut divisé par la vitesse du loop
+                blocker.takeDamage(15.0 / 10.0); // ex: 15 dégâts par seconde
+                
+                continue; // On passe à l'ennemi suivant, il n'avance pas sur le chemin
+            }
+
+            // --- 2. LOGIQUE DE MOUVEMENT (PATHFINDING) ---
+            // Si pas bloqué, il avance sur sa ligne
             int lane = enemyLaneIndex.getOrDefault(enemy.getUniqueId(), 0);
             List<Location> path = map.getPath(lane);
             int targetIndex = enemyPathIndex.getOrDefault(enemy.getUniqueId(), 0);
 
             if (targetIndex >= path.size()) {
+                // Arrivé au bout (Nexus)
                 plugin.getSessionManager().damageNexus(1);
                 enemy.remove();
-                enemyPathIndex.remove(enemy.getUniqueId());
-                enemyLaneIndex.remove(enemy.getUniqueId());
+                cleanEnemyData(enemy);
                 it.remove();
                 continue;
             }
 
             Location target = path.get(targetIndex);
             Location current = enemy.getLocation();
+            
+            // Vitesse définie dans les stats de l'ennemi
             double speed = enemy.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).getValue();
 
+            // Si proche du point, on passe au suivant
             if (current.distance(target) < speed + 0.5) {
                 enemyPathIndex.put(enemy.getUniqueId(), targetIndex + 1);
             } else {
+                // Vecteur de déplacement
                 Vector dir = target.toVector().subtract(current.toVector()).normalize().multiply(speed);
                 
-                // CORRECTION ERREUR "getVelocity undefined" :
-                // On récupère la vélocité de l'ENNEMI, pas de la Location (current)
+                // On garde la gravité (Y)
                 if (Math.abs(target.getY() - current.getY()) < 0.1) {
                     dir.setY(enemy.getVelocity().getY()); 
                 }
                 
                 enemy.setVelocity(dir);
+                
+                // Orientation vers où il marche
                 Location look = current.clone().setDirection(dir);
                 enemy.setRotation(look.getYaw(), look.getPitch());
             }
         }
     }
+    
+    private void cleanEnemyData(LivingEntity enemy) {
+        enemyPathIndex.remove(enemy.getUniqueId());
+        enemyLaneIndex.remove(enemy.getUniqueId());
+    }
+
     // --- MÉTHODES MANQUANTES POUR LE SCOREBOARD & SESSION ---
     
     public void clearAll() { // Renommé de cleanup -> clearAll

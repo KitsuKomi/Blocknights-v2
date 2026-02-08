@@ -12,6 +12,7 @@ import com.blocknights.utils.LangManager;
 import com.blocknights.waves.WaveManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import com.blocknights.game.ScoreboardManager;
+import com.blocknights.game.CombatListener;
 
 public class BlocknightsPlugin extends JavaPlugin {
 
@@ -58,6 +59,7 @@ public class BlocknightsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DeploymentListener(this), this);
         getServer().getPluginManager().registerEvents(new com.blocknights.game.operator.InteractionListener(this), this);
         getServer().getPluginManager().registerEvents(new com.blocknights.game.operator.PlacementListener(this), this);
+        getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         getLogger().info("Blocknights V2 (Architecture Arknights) chargé avec succès !");
     }
 
