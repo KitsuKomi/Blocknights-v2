@@ -21,7 +21,7 @@ import java.util.UUID;
 public class OperatorManager {
 
     private final BlocknightsPlugin plugin;
-    private final OperatorFileIO io;
+    private final OperatorLoader io;
     
     private final Map<String, OperatorDefinition> catalog = new HashMap<>();
     private final List<GameOperator> activeOperators = new ArrayList<>();
@@ -29,7 +29,7 @@ public class OperatorManager {
 
     public OperatorManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
-        this.io = new OperatorFileIO(plugin);
+        this.io = new OperatorLoader(plugin);
         
         reload();
         startGameLoop();
@@ -72,7 +72,13 @@ public class OperatorManager {
         return (int) (def.getCost() * 0.5);
     }
 
+    public void registerOperator(OperatorDefinition def) {
+        // catalog est ta Map<String, OperatorDefinition>
+        this.catalog.put(def.getId(), def);
+    }
+
     public boolean placeOperator(Player p, String opId, Location loc) {
+        // 1. Vérifications de base (Jeu lancé, etc.)
         if (!plugin.getSessionManager().isRunning()) {
             plugin.getLang().send(p, "game-not-running");
             return false;
@@ -86,21 +92,22 @@ public class OperatorManager {
 
         GamePlayer gp = plugin.getSessionManager().getGamePlayer(p);
         
+        // 2. Vérification Argent
         if (gp.getMoney() < def.getCost()) {
             double missing = def.getCost() - gp.getMoney();
             plugin.getLang().send(p, "op-no-money", "{amount}", String.valueOf((int)missing));
             return false;
         }
 
+        // 3. Vérification Terrain (Buildable)
         BnMap map = plugin.getMapManager().getActiveMap();
-        
         if (!map.isBuildable(loc)) {
             plugin.getLang().send(p, "op-invalid-spot");
-            p.playSound(loc, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
+            p.playSound(loc, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
             return false;
         }
 
-        // Vérification Collision (Citizens & Vanilla)
+        // 4. Vérification Collision (Citizens & Vanilla)
         for (GameOperator op : activeOperators) {
             if (op.getLocation().getBlock().equals(loc.getBlock())) {
                 plugin.getLang().send(p, "op-spot-taken");
@@ -111,32 +118,42 @@ public class OperatorManager {
         // --- DÉPLOIEMENT ---
         gp.removeMoney(def.getCost());
 
-        // Création NPC Citizens
-        NPC npc = CitizensAPI.getNPCRegistry().createNPC(org.bukkit.entity.EntityType.PLAYER, def.getName());
+        // CORRECTION 1 : On utilise le Type défini dans le YAML (Golem, Zombie, Player...)
+        NPC npc = net.citizensnpcs.api.CitizensAPI.getNPCRegistry().createNPC(def.getEntityType(), def.getName());
         
-        // Skin
-        if (def.getSkinTexture() != null) {
-            SkinTrait skinTrait = npc.getOrAddTrait(SkinTrait.class);
-            skinTrait.setTexture(def.getSkinTexture(), def.getSkinSignature());
-        } else {
-            npc.getOrAddTrait(SkinTrait.class).setSkinName(def.getSkinName());
+        // CORRECTION 2 : Gestion du Skin (Uniquement si c'est un HUMAIN)
+        if (def.getEntityType() == org.bukkit.entity.EntityType.PLAYER) {
+            // On vérifie si un nom de skin est défini dans le YAML
+            if (def.getSkinName() != null && !def.getSkinName().isEmpty()) {
+                SkinTrait skinTrait = npc.getOrAddTrait(SkinTrait.class);
+                skinTrait.setSkinName(def.getSkinName());
+            }
         }
 
         // Position & Orientation
+        // On centre bien le NPC au milieu du bloc
         Location spawnLoc = loc.getBlock().getLocation().add(0.5, 0, 0.5);
-        Location mapSpawn = plugin.getMapManager().getSpawnPoint();
-        if (mapSpawn != null) {
-            spawnLoc.setDirection(mapSpawn.toVector().subtract(spawnLoc.toVector()));
+        
+        // Orientation intelligente : Regarder vers le spawn des ennemis pour les accueillir
+        Location enemySpawn = plugin.getMapManager().getSpawnPoint();
+        if (enemySpawn != null) {
+            // Calcul du vecteur direction
+            spawnLoc.setDirection(enemySpawn.toVector().subtract(spawnLoc.toVector()));
+        } else {
+            // Sinon on garde la rotation du joueur qui pose
+            spawnLoc.setYaw(p.getLocation().getYaw());
         }
         
         npc.spawn(spawnLoc);
-        npc.setProtected(true);
+        npc.setProtected(true); // Empêche de le pousser/tuer vanilla
 
+        // Création de l'objet Logique
         GameOperator op = new GameOperator(def, npc);
         activeOperators.add(op);
         
+        // Feedback
         plugin.getLang().send(p, "op-placed", "{name}", def.getName());
-        p.playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+        p.playSound(loc, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
         
         return true;
     }

@@ -42,6 +42,7 @@ public class BlocknightsPlugin extends JavaPlugin {
         this.waveManager = new WaveManager(this);
         this.sessionManager = new SessionManager(this);
         this.scoreboardManager = new ScoreboardManager(this);
+        this.operatorManager = new OperatorManager(this);
 
         // 3. Initialiser l'Interface & Éditeur
         this.guiManager = new GuiManager(this);
@@ -61,6 +62,8 @@ public class BlocknightsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new com.blocknights.game.operator.PlacementListener(this), this);
         getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         getLogger().info("Blocknights V2 (Architecture Arknights) chargé avec succès !");
+        
+        new com.blocknights.game.operator.OperatorLoader(this).loadAll();
     }
 
     @Override
