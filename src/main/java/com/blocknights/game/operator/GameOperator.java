@@ -69,7 +69,11 @@ public class GameOperator {
         if (now - lastAttackTime < (definition.getAttackSpeed() * 1000)) {
             return; // On attend
         }
-
+        
+        if (definition.isHealer()) {
+            healNearbyAlly(plugin);
+            return; // Un soigneur ne tire pas sur les ennemis (généralement)
+        }
         // 2. PRIORITÉ : Attaquer ceux qu'on bloque (Corps à corps)
         if (!blockedEnemies.isEmpty()) {
             attackBlockedEnemies();
@@ -84,6 +88,37 @@ public class GameOperator {
                 shootAt(target);
                 lastAttackTime = now;
             }
+        }
+    }
+
+    private void healNearbyAlly(BlocknightsPlugin plugin) {
+        long now = System.currentTimeMillis();
+        if (now - lastAttackTime < (definition.getAttackSpeed() * 1000)) return;
+
+        // Chercher l'opérateur blessé le plus proche
+        GameOperator targetToHeal = null;
+        double rangeSq = definition.getRange() * definition.getRange();
+        
+        for (GameOperator op : plugin.getOperatorManager().getActiveOperators()) {
+            if (op == this) continue; // Ne se soigne pas lui-même (ou si ?)
+            if (op.getLocation().distanceSquared(getLocation()) > rangeSq) continue;
+            
+            // Est-il blessé ?
+            if (op.getCurrentHealth() < op.getDefinition().getMaxHealth()) {
+                // On pourrait prioriser celui qui a le moins de PV%
+                targetToHeal = op;
+                break; 
+            }
+        }
+
+        if (targetToHeal != null) {
+            // Appliquer le soin (ATK devient HEAL)
+            double healAmount = definition.getAtk();
+            targetToHeal.takeHealing(healAmount); // Créer cette méthode qui fait currentHealth += amount
+            
+            // Visuel
+            getLocation().getWorld().spawnParticle(org.bukkit.Particle.HEART, targetToHeal.getLocation().add(0, 2, 0), 3);
+            lastAttackTime = now;
         }
     }
 

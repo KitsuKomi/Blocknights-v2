@@ -71,6 +71,27 @@ public class CombatListener implements Listener {
                 return; 
             }
         }
+        
+        if (e.getDamager().hasMetadata("bn_aoe_radius")) {
+        double radius = e.getDamager().getMetadata("bn_aoe_radius").get(0).asDouble();
+        double centerDamage = e.getFinalDamage(); // Dégâts initiaux calculés
+        
+        // On récupère les entités autour
+        for (org.bukkit.entity.Entity nearby : e.getEntity().getNearbyEntities(radius, radius, radius)) {
+            if (nearby == e.getEntity()) continue; // Déjà touché
+            if (!(nearby instanceof LivingEntity target)) continue;
+            
+            // On vérifie que c'est un ENNEMI (via metadata bn_def ou liste WaveManager)
+            if (target.hasMetadata("bn_def")) {
+                // On applique les dégâts (réduits avec la distance si tu veux, ici brut)
+                // Attention : ça va rappeler onDamage récursivement, donc le calcul DEF se fera !
+                ((LivingEntity) nearby).damage(centerDamage, e.getDamager());
+            }
+        }
+        
+        // Effet visuel
+        e.getEntity().getWorld().createExplosion(e.getEntity().getLocation(), 0F, false); // 0F = pas de dégâts blocs
+    }
         // Est-ce que la victime est un Ennemi ?
         else if (victim.hasMetadata("bn_def")) {
             defense = victim.getMetadata("bn_def").get(0).asDouble();
