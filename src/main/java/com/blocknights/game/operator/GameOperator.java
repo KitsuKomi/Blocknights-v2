@@ -69,7 +69,7 @@ public class GameOperator {
         if (now - lastAttackTime < (definition.getAttackSpeed() * 1000)) {
             return; // On attend
         }
-        
+
         if (definition.isHealer()) {
             healNearbyAlly(plugin);
             return; // Un soigneur ne tire pas sur les ennemis (généralement)
@@ -122,6 +122,26 @@ public class GameOperator {
         }
     }
 
+    public double getCurrentHealth() {
+        return currentHealth;
+    }
+
+    public void takeHealing(double amount) {
+        // On ne peut pas dépasser la vie max définie
+        double max = definition.getMaxHealth();
+        this.currentHealth = Math.min(max, this.currentHealth + amount);
+
+        // Mise à jour visuelle (Barre de vie Bukkit)
+        if (npc.isSpawned() && npc.getEntity() instanceof LivingEntity living) {
+            // On s'assure que la barre visuelle correspond
+            double visualMax = living.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            living.setHealth(Math.min(visualMax, this.currentHealth));
+            
+            // Petit effet visuel de cœur
+            living.getWorld().spawnParticle(org.bukkit.Particle.HEART, living.getLocation().add(0, 2, 0), 1);
+        }
+    }
+    
     private LivingEntity findTarget(BlocknightsPlugin plugin) {
         // On récupère la liste de tous les ennemis vivants via le WaveManager
         List<LivingEntity> potentialTargets = plugin.getWaveManager().getEnemies();

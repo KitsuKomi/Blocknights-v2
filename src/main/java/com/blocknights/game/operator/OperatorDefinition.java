@@ -33,6 +33,7 @@ public class OperatorDefinition {
     private double range = 1.0; // Portée en blocs (ex: 1.0 pour Tank, 5.0 pour Sniper)
     private boolean isRanged = false; // true = tire, false = tape au contact
     private String projectileType = "NONE"; // ARROW, SNOWBALL, FIREBALL, WITHER_SKULL, PARTICLE_BEAM
+    private boolean isHealer = false;
 
     public OperatorDefinition(String id, String name, EntityType type, double cost, int redeploy,
                               double hp, double atk, double def, int block,
@@ -86,4 +87,7 @@ public class OperatorDefinition {
     public void setRanged(boolean ranged) { isRanged = ranged; }
     public String getProjectileType() { return projectileType; }
     public void setProjectileType(String type) { this.projectileType = type; }
+    public boolean isHealer() {
+        return isHealer; }
+    public void setHealer(boolean healer) {isHealer = healer; }
 }
