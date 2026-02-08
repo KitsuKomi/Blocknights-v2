@@ -153,3 +153,21 @@ nexus-damaged-subtitle: "&cNexus attaqué !"
 game-over-chat: "&4&lGAME OVER ! &cLe Nexus est détruit."
 game-over-title: "&4DÉFAITE"
 game-over-subtitle: "&cLe Nexus est tombé..."
+
+gui:
+  operator:
+    title: "&8Gestion: {name}"
+    info:
+      name: "&eInformations"
+      class: "&7Classe: &f{value}"
+      health: "&7Santé: &a{current} / {max}"
+      atk: "&7Attaque: &c{value}"
+      def: "&7Défense: &9{value}"
+    retreat:
+      name: "&c&lRETRAITE"
+      lore:
+        - "&7Renvoyer cet opérateur."
+        - ""
+        - "&eRemboursement: &6+{amount} ⛃"
+        - "&c⚠ Action irréversible !"
+    close: "&cFermer"

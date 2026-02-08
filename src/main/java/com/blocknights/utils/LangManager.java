@@ -4,6 +4,7 @@ import com.blocknights.BlocknightsPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
@@ -14,6 +15,7 @@ public class LangManager {
 
     private final BlocknightsPlugin plugin;
     private final Map<String, String> messages = new HashMap<>();
+    private FileConfiguration config;
 
     public LangManager(BlocknightsPlugin plugin) {
         this.plugin = plugin;
@@ -75,6 +77,34 @@ public class LangManager {
         String prefix = messages.getOrDefault("prefix", "&6[BN] ");
         String msg = messages.getOrDefault(key, "&cMessage introuvable: " + key);
         return format(prefix + msg);
+    }
+
+    /**
+     * Récupère un message du fichier de langue, applique les couleurs, 
+     * mais NE L'ENVOIE PAS (utile pour les GUIs, Items, Titles).
+     */
+    // --- MÉTHODE 1 : Récupérer avec une valeur par défaut (Celle qui manque) ---
+    public String get(org.bukkit.entity.Player p, String key, String defaultValue) {
+        // 1. Vérifie que la config est chargée
+        // Si ta variable s'appelle 'messages' ou 'yaml', change le mot 'config' ici !
+        if (config == null) return defaultValue; 
+
+        // 2. Récupère le message
+        String msg = config.getString(key);
+
+        // 3. Si la clé n'existe pas dans le fichier, on renvoie la valeur par défaut
+        if (msg == null) {
+            return org.bukkit.ChatColor.translateAlternateColorCodes('&', defaultValue);
+        }
+
+        // 4. Traduction des couleurs
+        return org.bukkit.ChatColor.translateAlternateColorCodes('&', msg);
+    }
+
+    // --- MÉTHODE 2 : Récupérer sans valeur par défaut (Surcharge) ---
+    public String get(org.bukkit.entity.Player p, String key) {
+        // On appelle la méthode du dessus avec un message d'erreur par défaut
+        return get(p, key, "&cMissing Key: " + key);
     }
     
     // Change "private" en "public" ici

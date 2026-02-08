@@ -1,6 +1,7 @@
 package com.blocknights.game.operator;
 
 import com.blocknights.BlocknightsPlugin;
+import net.citizensnpcs.api.CitizensAPI;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -15,16 +16,23 @@ public class InteractionListener implements Listener {
     }
 
     @EventHandler
-    public void onEntityInteract(PlayerInteractEntityEvent e) {
-        // Évite le double événement (Main + Offhand)
+    public void onRightClickNPC(PlayerInteractEntityEvent e) {
+        // On ne veut que la main principale
         if (e.getHand() != EquipmentSlot.HAND) return;
 
-        // On cherche si l'entité cliquée est un Opérateur géré par notre plugin
-        GameOperator op = plugin.getOperatorManager().getOperatorByEntity(e.getRightClicked());
-        
-        if (op != null) {
-            // C'est un opérateur ! On ouvre le menu
-            new OperatorInfoGui(plugin, e.getPlayer(), op).open(e.getPlayer());
+        // Est-ce un NPC Citizens ?
+        if (CitizensAPI.getNPCRegistry().isNPC(e.getRightClicked())) {
+            
+            // Est-ce un de NOS opérateurs ?
+            GameOperator op = plugin.getOperatorManager().getOperatorByEntity(e.getRightClicked());
+            
+            if (op != null) {
+                // Bingo ! On ouvre le menu de gestion de l'unité
+                new OperatorMenu(plugin, e.getPlayer(), op).open(e.getPlayer());
+                
+                // On annule l'événement pour pas que le joueur monte sur le cheval/parle au villageois
+                e.setCancelled(true);
+            }
         }
     }
 }
