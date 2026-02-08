@@ -70,10 +70,9 @@ public class CombatListener implements Listener {
                 op.takeDamage(calculateFinalDamage(damage, defense));
                 return; 
             }
-        }
-        e.setDamage(finalDamage); // Dégât vanilla (souvent 0 si tu gères tout toi-même, mais gardons le pour l'instant)
-    
-    // --- MISE À JOUR BARRE DE VIE ENNEMIE ---
+        }// Dégât vanilla (souvent 0 si tu gères tout toi-même, mais gardons le pour l'instant)
+        
+        // --- MISE À JOUR BARRE DE VIE ENNEMIE ---
         if (victim.hasMetadata("bn_def")) { // C'est un ennemi à nous
             // On récupère ses PV actuels (Attention : Bukkit gère les PV vanilla, 
             // si tu utilises des PV > 2048, il faut stocker les PV actuels dans une Metadata aussi !)

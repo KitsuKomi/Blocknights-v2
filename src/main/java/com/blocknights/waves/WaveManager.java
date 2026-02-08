@@ -84,7 +84,6 @@ public class WaveManager {
         Location spawnLoc = path.get(0);
         LivingEntity enemy = (LivingEntity) spawnLoc.getWorld().spawnEntity(spawnLoc, group.getMobType());
 
-        updateEnemyHealthBar(enemy, enemyHP, enemyHP);
         var maxHp = enemy.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHp != null) maxHp.setBaseValue(group.getHealth());
         enemy.setHealth(group.getHealth());
@@ -101,6 +100,7 @@ public class WaveManager {
         activeEnemies.add(enemy);
         enemyPathIndex.put(enemy.getUniqueId(), 0);
         enemyLaneIndex.put(enemy.getUniqueId(), group.getLaneIndex());
+        updateEnemyHealthBar(enemy, group.getHealth(), group.getHealth());
     }
 
     private void startMoveLoop() {
@@ -114,17 +114,18 @@ public class WaveManager {
     }
 
     public void updateEnemyHealthBar(LivingEntity entity, double current, double max) {
+        if (max <= 0) max = 1; // Sécurité division par zéro
         int percent = (int) ((current / max) * 100);
         
-        // Couleur selon les PV (Vert -> Jaune -> Rouge)
-        String color = "§a";
-        if (percent < 50) color = "§e";
-        if (percent < 20) color = "§c";
+        String color = "§a"; // Vert
+        if (percent < 50) color = "§e"; // Jaune
+        if (percent < 20) color = "§c"; // Rouge
 
-        entity.setCustomName(color + "HP: " + (int)current + " / " + (int)max);
+        // Affiche : [Barre Verte] 150/200
+        entity.setCustomName(color + "HP: " + (int)Math.max(0, current) + " / " + (int)max);
         entity.setCustomNameVisible(true);
     }
-    
+
     private void moveEnemies() {
         Iterator<LivingEntity> it = activeEnemies.iterator();
         BnMap map = plugin.getMapManager().getActiveMap();
